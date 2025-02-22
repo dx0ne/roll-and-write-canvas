@@ -1,6 +1,7 @@
 let canvas, ctx, previewCtx;
 let currentColor = '#000000';
 let currentTool = 'pen';
+let originalImageData = null;  // Add this to store original image state
 
 document.addEventListener('DOMContentLoaded', () => {
     canvas = document.getElementById('gameBoard');
@@ -45,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     markersLayer.style.height = canvas.height + 'px';
                     
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);  // Store original state
                     drawHistory = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
                 };
                 img.src = event.target.result;
@@ -130,11 +132,35 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentX = e.clientX - rect.left;
         const currentY = e.clientY - rect.top;
 
-        if (currentTool === 'pen' || currentTool === 'eraser') {
+        if (currentTool === 'pen') {
             ctx.lineTo(currentX, currentY);
-            ctx.strokeStyle = currentTool === 'eraser' ? '#ffffff' : currentColor;
-            ctx.lineWidth = currentTool === 'eraser' ? 20 : 2;
+            ctx.strokeStyle = currentColor;
+            ctx.lineWidth = 2;
             ctx.stroke();
+            return;
+        } else if (currentTool === 'eraser' && originalImageData) {
+            // Create a temporary canvas for the eraser operation
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Copy current canvas state
+            tempCtx.putImageData(ctx.getImageData(0, 0, canvas.width, canvas.height), 0, 0);
+            
+            // Set up eraser
+            tempCtx.globalCompositeOperation = 'destination-out';
+            tempCtx.beginPath();
+            tempCtx.arc(currentX, currentY, 10, 0, Math.PI * 2);
+            tempCtx.fill();
+            
+            // Draw original image first
+            ctx.putImageData(originalImageData, 0, 0);
+            
+            // Then draw current state with erased portion
+            ctx.globalCompositeOperation = 'source-atop';
+            ctx.drawImage(tempCanvas, 0, 0);
+            ctx.globalCompositeOperation = 'source-over';
             return;
         }
 
@@ -210,11 +236,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         handleMouseDown(e);
 
-        if (currentTool === 'pen' || currentTool === 'eraser') {
+        if (currentTool === 'pen') {
             ctx.beginPath();
             ctx.moveTo(pos.x, pos.y);
-            ctx.strokeStyle = currentTool === 'eraser' ? '#ffffff' : currentColor;
-            ctx.lineWidth = currentTool === 'eraser' ? 20 : 2;
+            ctx.strokeStyle = currentColor;
+            ctx.lineWidth = 2;
+        } else if (currentTool === 'eraser' && originalImageData) {
+            // Initial eraser action
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            tempCtx.putImageData(ctx.getImageData(0, 0, canvas.width, canvas.height), 0, 0);
+            tempCtx.globalCompositeOperation = 'destination-out';
+            tempCtx.beginPath();
+            tempCtx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
+            tempCtx.fill();
+            
+            ctx.putImageData(originalImageData, 0, 0);
+            ctx.globalCompositeOperation = 'source-atop';
+            ctx.drawImage(tempCanvas, 0, 0);
+            ctx.globalCompositeOperation = 'source-over';
         }
     });
 

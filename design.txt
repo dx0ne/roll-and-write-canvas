@@ -1,5 +1,42 @@
-create and app where i can do following things:
-1. upload an image - that will become board. scale image so it fits the screen. canvas shoyld match the image size.
-2. simple painter on that image with undo option and few predefined colors to pick from
-3. create and move around markers. user can add them by Ctrl + click on canvas
-4. roll number of different dice that i put in text field ( If i put 3d6 == gives result of 3 roll from 6 sided dice, d4 rolls one 4 sided die)
+IMPLEMENTED FEATURES:
+1. Image Board
+   - Upload image functionality
+   - Image scaling to fit screen
+   - Canvas size matches image dimensions
+
+2. Drawing Tools
+   - Basic painting functionality
+   - Line tool
+   - Rectangle tool
+   - Undo capability
+   - Color picker with predefined colors
+
+3. Marker System
+   - Add markers via Ctrl + click
+   - Markers can be moved around the canvas
+
+4. Dice Rolling
+   - Support for standard dice notation (e.g., 3d6, d4)
+   - Multiple dice rolls in single command
+   - Displays individual roll results
+
+POTENTIAL ENHANCEMENTS:
+1. Drawing Tools
+   - Brush size adjustment
+   - Save/export drawing
+   - Different brush types
+
+2. Marker System
+   - Custom marker styles
+   - Delete markers
+   - Marker labels/notes
+
+3. Dice Rolling
+   - Roll history
+   - Custom dice faces
+   - Visual dice animation
+
+4. General
+   - Save/load board state
+   - Multiple layers support
+   - Export/import functionality
