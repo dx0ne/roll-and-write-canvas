@@ -324,17 +324,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (e.shiftKey) {
-                const currentSize = parseInt(marker.style.width) || 40;
-                const newSize = currentSize >= 60 ? 20 : currentSize + 20;
-                // Get current position and calculate center
-                const currentLeft = parseInt(marker.style.left);
-                const currentTop = parseInt(marker.style.top);
-                const sizeDiff = newSize - currentSize;
-                // Adjust position to maintain center point
-                marker.style.left = `${currentLeft - sizeDiff/2}px`;
-                marker.style.top = `${currentTop - sizeDiff/2}px`;
-                marker.style.width = `${newSize}px`;
-                marker.style.height = `${newSize}px`;
+                // Initialize resize state
+                selectedMarker = marker;
+                const startX = e.clientX;
+                const initialSize = parseInt(marker.style.width) || 40;
+                const initialLeft = parseInt(marker.style.left);
+                const initialTop = parseInt(marker.style.top);
+
+                const handleResize = (moveEvent) => {
+                    const deltaX = moveEvent.clientX - startX;
+                    // Change size based on mouse movement (adjust sensitivity as needed)
+                    const newSize = Math.max(20, Math.min(100, initialSize + deltaX));
+                    const sizeDiff = newSize - initialSize;
+                    
+                    // Adjust position to maintain center point
+                    marker.style.left = `${initialLeft - sizeDiff/2}px`;
+                    marker.style.top = `${initialTop - sizeDiff/2}px`;
+                    marker.style.width = `${newSize}px`;
+                    marker.style.height = `${newSize}px`;
+                };
+
+                const stopResize = () => {
+                    document.removeEventListener('mousemove', handleResize);
+                    document.removeEventListener('mouseup', stopResize);
+                    selectedMarker = null;
+                };
+
+                document.addEventListener('mousemove', handleResize);
+                document.addEventListener('mouseup', stopResize);
                 e.preventDefault();
                 return;
             }
