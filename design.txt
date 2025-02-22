@@ -15,11 +15,15 @@ IMPLEMENTED FEATURES:
 3. Marker System
    - Add markers via Ctrl + click
    - Markers can be moved around the canvas
+   - Markers can be resized
+   - Remove markers with Ctrl + click
 
 4. Dice Rolling
    - Support for standard dice notation (e.g., 3d6, d4)
    - Multiple dice rolls in single command
    - Displays individual roll results
+   - Dice can be rerolled
+   - Visual dice animation
 
 POTENTIAL ENHANCEMENTS:
 1. Drawing Tools
@@ -29,13 +33,11 @@ POTENTIAL ENHANCEMENTS:
 
 2. Marker System
    - Custom marker styles
-   - Delete markers
    - Marker labels/notes
 
 3. Dice Rolling
    - Roll history
    - Custom dice faces
-   - Visual dice animation
 
 4. General
    - Multiple layers support

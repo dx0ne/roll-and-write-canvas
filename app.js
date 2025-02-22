@@ -386,11 +386,24 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedMarker = null;
     });
 
-    // Dice Roller
-    function createDie(sides, diceContainer, updateTotal) {
+    // Add this before the roll button event listener
+    const customDiceSets = {
+        'd6': ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'],  // Default Unicode dice
+        'dsymbols': ['▲', '■', '●', '★'],  // Example symbol dice
+    };
+
+    function createDie(sides, diceContainer, updateTotal, diceType = null) {
         const die = document.createElement('div');
         die.className = 'die';
         diceContainer.appendChild(die);
+        
+        // Get faces based on diceType or fallback to numeric
+        let faces;
+        if (diceType && customDiceSets[diceType]) {
+            faces = customDiceSets[diceType];
+        } else {
+            faces = Array.from({length: sides}, (_, i) => i + 1);
+        }
         
         function rollThisDie() {
             die.classList.remove('rolled');
@@ -398,48 +411,70 @@ document.addEventListener('DOMContentLoaded', () => {
             die.classList.add(rollClass);
             
             let rollInterval = setInterval(() => {
-                die.textContent = Math.floor(Math.random() * sides) + 1;
+                const randomFace = faces[Math.floor(Math.random() * faces.length)];
+                die.innerHTML = randomFace;
             }, 50);
 
             setTimeout(() => {
                 clearInterval(rollInterval);
-                const roll = Math.floor(Math.random() * sides) + 1;
-                die.textContent = roll;
+                const roll = faces[Math.floor(Math.random() * faces.length)];
+                die.innerHTML = roll;
                 die.classList.remove('roll-left', 'roll-right');
                 die.classList.add('rolled');
                 updateTotal();
             }, 1000);
         }
 
-        // Add click handler for rerolling this specific die
         die.addEventListener('click', rollThisDie);
         die.style.cursor = 'pointer';
         die.title = 'Click to reroll this die';
-
-        // Initial roll
         rollThisDie();
         return die;
+    }
+
+    // Add function to register new dice sets
+    function registerDiceSet(name, faces) {
+        if (!name.startsWith('d')) {
+            name = 'd' + name;
+        }
+        customDiceSets[name.toLowerCase()] = faces;
+        showNotification(`Dice set "${name}" registered successfully!`);
     }
 
     // Modify the roll button click handler
     document.getElementById('rollButton').addEventListener('click', () => {
         const input = document.getElementById('diceInput').value.trim();
-        const diceRegex = /^(\d+)?d(\d+)$/i;
+        const diceRegex = /^(\d+)?d(\d+|[A-Za-z]+)$/i;  // Updated regex to better handle dice notation
         const match = input.match(diceRegex);
-        let count, sides;
         
-        if (match) {
-            count = parseInt(match[1]) || 1;
-            sides = parseInt(match[2]);
-        } else if (!input) {
-            count = Math.floor(Math.random() * 2) + 2; // Random number between 2-3
-            sides = 6;
-        } else {
-            alert('Invalid dice format. Use format: NdM (e.g., 3d6, d20)');
+        if (!match && input) {
+            alert('Invalid dice format. Use format: NdM or NdName (e.g., 3d6, d20, 2dSymbols)');
             return;
         }
 
-        // Create dice container if it doesn't exist
+        let count = 1;
+        let diceType = null;
+        let sides = 6;
+
+        if (match) {
+            count = parseInt(match[1]) || 1;
+            const typeOrSides = match[2].toLowerCase();
+            
+            // If it's a named dice set
+            if (customDiceSets['d' + typeOrSides]) {
+                diceType = 'd' + typeOrSides;
+                sides = customDiceSets[diceType].length;
+            } else {
+                // Try to parse as number (e.g., d20)
+                sides = parseInt(typeOrSides);
+                
+                if (isNaN(sides)) {
+                    alert(`Unknown dice type: ${typeOrSides}`);
+                    return;
+                }
+            }
+        }
+
         let diceContainer = document.getElementById('diceContainer');
         if (!diceContainer) {
             diceContainer = document.createElement('div');
@@ -448,16 +483,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         diceContainer.innerHTML = '';
 
-        // Function to update the total
         const updateTotal = () => {
             const dice = diceContainer.querySelectorAll('.die');
-            const total = Array.from(dice).reduce((sum, die) => sum + parseInt(die.textContent), 0);
-            document.getElementById('rollResult').innerHTML = `Total: ${total}`;
+            let total = 0;
+            let hasNonNumeric = false;
+            
+            dice.forEach(die => {
+                const value = die.innerHTML;
+                const numeric = parseInt(value);
+                if (!isNaN(numeric)) {
+                    total += numeric;
+                } else {
+                    hasNonNumeric = true;
+                }
+            });
+            
+            document.getElementById('rollResult').innerHTML = hasNonNumeric ? 
+                `Results shown above` : 
+                `Total: ${total}`;
         };
 
-        // Create and roll dice
         for (let i = 0; i < count; i++) {
-            createDie(sides, diceContainer, updateTotal);
+            createDie(sides, diceContainer, updateTotal, diceType);
         }
     });
 
@@ -587,4 +634,9 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mouseup', handleMouseUp);
     canvas.addEventListener('mouseout', handleMouseUp);
+
+
+    registerDiceSet('Symbols', ['▲', '■', '●', '★']);  // Can be used as 3dSymbols
+    registerDiceSet('YesNo', ['Yes', 'No', 'Maybe']);  // Can be used as 2dYesNo
+    registerDiceSet('Elements', ['🔥', '💧', '🌪️', '⛰️']);  // Can be used as dElements
 }); 
