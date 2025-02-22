@@ -387,16 +387,51 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Dice Roller
+    function createDie(sides, diceContainer, updateTotal) {
+        const die = document.createElement('div');
+        die.className = 'die';
+        diceContainer.appendChild(die);
+        
+        function rollThisDie() {
+            die.classList.remove('rolled');
+            const rollClass = Math.random() < 0.5 ? 'roll-left' : 'roll-right';
+            die.classList.add(rollClass);
+            
+            let rollInterval = setInterval(() => {
+                die.textContent = Math.floor(Math.random() * sides) + 1;
+            }, 50);
+
+            setTimeout(() => {
+                clearInterval(rollInterval);
+                const roll = Math.floor(Math.random() * sides) + 1;
+                die.textContent = roll;
+                die.classList.remove('roll-left', 'roll-right');
+                die.classList.add('rolled');
+                updateTotal();
+            }, 1000);
+        }
+
+        // Add click handler for rerolling this specific die
+        die.addEventListener('click', rollThisDie);
+        die.style.cursor = 'pointer';
+        die.title = 'Click to reroll this die';
+
+        // Initial roll
+        rollThisDie();
+        return die;
+    }
+
+    // Modify the roll button click handler
     document.getElementById('rollButton').addEventListener('click', () => {
         const input = document.getElementById('diceInput').value.trim();
         const diceRegex = /^(\d+)?d(\d+)$/i;
         const match = input.match(diceRegex);
         let count, sides;
+        
         if (match) {
             count = parseInt(match[1]) || 1;
             sides = parseInt(match[2]);
         } else if (!input) {
-            // If no input, randomly roll 2-3 d6 dice
             count = Math.floor(Math.random() * 2) + 2; // Random number between 2-3
             sides = 6;
         } else {
@@ -413,38 +448,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         diceContainer.innerHTML = '';
 
-        // Create and animate dice
-        const rolls = [];
+        // Function to update the total
+        const updateTotal = () => {
+            const dice = diceContainer.querySelectorAll('.die');
+            const total = Array.from(dice).reduce((sum, die) => sum + parseInt(die.textContent), 0);
+            document.getElementById('rollResult').innerHTML = `Total: ${total}`;
+        };
+
+        // Create and roll dice
         for (let i = 0; i < count; i++) {
-            const die = document.createElement('div');
-            die.className = 'die';
-            diceContainer.appendChild(die);
-            const rollClass = Math.random() < 0.5 ? 'roll-left' : 'roll-right';
-            die.classList.add(rollClass);
-            document.getElementById('rollResult').innerHTML = `Total: ...`;
-
-            // Animate roll
-            let rollInterval = setInterval(() => {
-                die.textContent = Math.floor(Math.random() * sides) + 1;
-            }, 50);
-
-            // Stop animation and show final result
-            setTimeout(() => {
-                clearInterval(rollInterval);
-                const roll = Math.floor(Math.random() * sides) + 1;
-                rolls.push(roll);
-                die.textContent = roll;
-                die.classList.remove('roll-left', 'roll-right');
-                die.classList.add('rolled');
-
-                // Update total when all dice have rolled
-                if (rolls.length === count) {
-                    const total = rolls.reduce((sum, r) => sum + r, 0);
-                    document.getElementById('rollResult').innerHTML = `Total: ${total}`;
-                }
-            }, 1000 + (i * 200)); // Stagger the dice stops
+            createDie(sides, diceContainer, updateTotal);
         }
-
     });
 
     function showNotification(message, type = 'success') {
