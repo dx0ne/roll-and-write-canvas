@@ -379,27 +379,51 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Update the save/load state functions
+    function showNotification(message, type = 'success') {
+        console.log('Showing notification:', message, type);
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.className = `notification ${type}`;
+        
+        // Trigger reflow to restart animation
+        notification.offsetHeight;
+        
+        notification.classList.add('show');
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 3000);
+    }
+
     function saveState() {
-        const state = {
-            canvasData: canvas.toDataURL(),
-            canvasWidth: canvas.width,
-            canvasHeight: canvas.height,
-            markers: Array.from(markersLayer.children).map(marker => ({
-                x: parseInt(marker.style.left),
-                y: parseInt(marker.style.top),
-                color: marker.style.backgroundColor,
-                width: marker.style.width || '40px',
-                height: marker.style.height || '40px'
-            }))
-        };
-        localStorage.setItem('boardState', JSON.stringify(state));
-        alert('Board state saved!');
+        try {
+            const state = {
+                canvasData: canvas.toDataURL(),
+                canvasWidth: canvas.width,
+                canvasHeight: canvas.height,
+                markers: Array.from(markersLayer.children).map(marker => ({
+                    x: parseInt(marker.style.left),
+                    y: parseInt(marker.style.top),
+                    color: marker.style.backgroundColor,
+                    width: marker.style.width || '40px',
+                    height: marker.style.height || '40px'
+                }))
+            };
+            localStorage.setItem('boardState', JSON.stringify(state));
+            showNotification('Board state saved successfully!');
+        } catch (error) {
+            showNotification('Failed to save board state', 'error');
+        }
     }
 
     function loadState() {
-        const saved = localStorage.getItem('boardState');
-        if (saved) {
+        try {
+            const saved = localStorage.getItem('boardState');
+            if (!saved) {
+                showNotification('No saved board state found', 'error');
+                return;
+            }
+
             const state = JSON.parse(saved);
             
             // Set canvas dimensions
@@ -414,6 +438,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.drawImage(img, 0, 0);
                 originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 drawHistory = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
+                showNotification('Board state loaded successfully!');
+            };
+            img.onerror = () => {
+                showNotification('Failed to load board image', 'error');
             };
             img.src = state.canvasData;
             
@@ -433,6 +461,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 marker.appendChild(innerShadow);
                 
                 marker.addEventListener('mousedown', (e) => {
+                    if (e.ctrlKey) {
+                        marker.remove();
+                        e.preventDefault();
+                        return;
+                    }
                     selectedMarker = marker;
                     const rect = marker.getBoundingClientRect();
                     markerOffsetX = e.clientX - rect.left;
@@ -442,9 +475,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 markersLayer.appendChild(marker);
             });
-            alert('Board state loaded!');
-        } else {
-            alert('No saved board state found!');
+        } catch (error) {
+            showNotification('Failed to load board state', 'error');
         }
     }
 
