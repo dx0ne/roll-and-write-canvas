@@ -40,6 +40,16 @@
                 <button id="rollButton" title="Roll Dice"><i class="fas fa-dice"></i></button>
                 <div id="rollResult"></i></div>
             </div>
+            <div class="dice-faces-container">
+                <input type="text" 
+                       class="custom-face-input" 
+                       placeholder="dCombat [💀⚔️🛡️]"
+                       title="Enter dice set in format: dName [symbol1symbol2symbol3] (e.g., dCombat [💀⚔️🛡️])"
+                       style="width: 200px">
+                <button id="addCustomFaceButton" title="Add custom dice set">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
         </div>
         <div class="board-container">
             <canvas id="gameBoard"></canvas>

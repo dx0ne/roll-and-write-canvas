@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let originalHeight = 0;
     let startX, startY;
 
+    const addCustomFaceButton = document.getElementById('addCustomFaceButton');
+    addCustomFaceButton.addEventListener('click', addCustomFace);   
+
     function calculateFitScale(imgWidth, imgHeight) {
         const padding = 40;
         const maxWidth = window.innerWidth - padding;
@@ -639,4 +642,31 @@ document.addEventListener('DOMContentLoaded', () => {
     registerDiceSet('Symbols', ['▲', '■', '●', '★']);  // Can be used as 3dSymbols
     registerDiceSet('YesNo', ['Yes', 'No', 'Maybe']);  // Can be used as 2dYesNo
     registerDiceSet('Elements', ['🔥', '💧', '🌪️', '⛰️']);  // Can be used as dElements
+
+    function addCustomFace() {
+        const customFaceInput = document.querySelector('.custom-face-input');
+        const input = customFaceInput.value.trim();
+        
+        // Simplified pattern to match "Name [faces]"
+        const match = input.match(/^(\w+)\s*\[(.*)\]$/);
+        
+        if (match) {
+            const [_, name, faces] = match;
+            let faceArray = Array.from(faces.trim());
+            //remove empty strings from array
+            faceArray = faceArray.filter(face => face.trim() !== '');
+            if (faceArray.length > 0) {
+                console.log(name, faceArray);
+                registerDiceSet(name, faceArray);
+                customFaceInput.value = ''; // Clear the input
+                showNotification(`Dice set "${name}" added with ${faceArray.length} faces!`, 'success');
+            } else {
+                showNotification('No faces provided in brackets', 'error');
+            }
+        } else {
+            showNotification('Invalid format. Use: Name [faces] (e.g., Combat [💀⚔️🛡️])', 'error');
+        }
+    } 
+    
 }); 
+
