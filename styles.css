@@ -2,30 +2,38 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    padding: 20px;
+
 }
 
 .controls {
+
     display: flex;
-    gap: 20px;
+    gap: 12px;
+    padding: 12px;
+
+    border-radius: 8px;
+    box-shadow: 0px 4px 4px 1px rgba(0, 0, 0, 0.1);
+    margin-bottom: 16px;
     align-items: center;
-    padding: 10px;
-    background: #f0f0f0;
-    border-radius: 5px;
-    margin-bottom: 20px;
 }
 
 .color-picker {
     display: flex;
-    gap: 5px;
+    gap: 8px;
+    padding: 4px;
+    background: white;
+    border-radius: 8px;
+}
+
+.shadowed {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 
 .color-option {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    cursor: pointer;
-    border: 2px solid #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 2px solid white;
 }
 
 .color-option.selected {
@@ -69,47 +77,74 @@
 
 .dice-roller {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
+    background: white;
+    padding: 4px 12px;
+    border-radius: 8px;
 }
 
 #diceInput {
-    padding: 5px;
+    border: none;
+    padding: 12px;
+    border-radius: 4px;
+    background: #f5f5f5;
     width: 100px;
 }
 
-#rollResult {
-    min-width: 200px;
-    padding: 5px;
+#diceInput:focus {
+    outline: 2px solid #2196F3;
+    background: white;
 }
 
-button {
-    padding: 5px 10px;
+#rollResult {
+    min-width: 40px;
+    text-align: center;
+    font-weight: bold;
+    color: #2196F3;
+}
+
+button, .tool-option, .file-upload-label {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    background: white;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+button:hover, .tool-option:hover, .file-upload-label:hover {
+    background: #f0f0f0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.tool-option.selected, .color-option.selected {
+    background: #e3f2fd;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    border: 2px solid #2196F3;
 }
 
 .tools {
     display: flex;
-    gap: 5px;
-    padding: 5px;
-    background: #fff;
-    border-radius: 5px;
+    gap: 8px;
+    padding: 4px;
+    background: white;
+    border-radius: 8px;
+
 }
 
-.tool-option {
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border: 2px solid transparent;
-    border-radius: 5px;
+i {
+    font-size: 18px;
+    color: #555;
 }
 
-.tool-option.selected {
-    border-color: #333;
-    background: #eee;
+.selected i {
+    color: #2196F3;
 }
 
 #previewLayer {
@@ -153,13 +188,13 @@ button {
 #diceContainer {
     display: flex;
     gap: 10px;
-    margin: 10px 0;
+
 }
 
 .die {
     width: 40px;
     height: 40px;
-    background: #ffffff;
+    background: #f1f1f1;
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -180,7 +215,7 @@ button {
 
 @keyframes rollDiceLeft {
     0% { transform: rotate(0deg) scale(1); }
-    25% { transform: rotate(-45deg) scale(1.1); }
+    25% { transform: rotate(-45deg) scale(1.0); }
     75% { transform: rotate(45deg) scale(0.9); }
     100% { transform: rotate(0deg) scale(1); }
 }
@@ -188,20 +223,14 @@ button {
 @keyframes rollDiceRight {
     0% { transform: rotate(0deg) scale(1); }
     25% { transform: rotate(45deg) scale(0.9); }
-    75% { transform: rotate(-45deg) scale(1.1); }
+    75% { transform: rotate(-45deg) scale(1.0); }
     100% { transform: rotate(0deg) scale(1); }
 }
 
 .die.rolled {
     animation: none;
-    transform: scale(1.1);
+    transform: scale(1.0);
     transition: transform 0.2s ease-out;
-}
-
-#rollResult {
-    font-size: 18px;
-    font-weight: bold;
-    margin-top: 10px;
 }
 
 .hidden-input {

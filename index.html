@@ -25,11 +25,6 @@
                 <div class="color-option" data-color="#0000ff" style="background-color: #0000ff"></div>
             </div>
             <button id="undoButton" title="Undo last action [Ctrl+Z]"><i class="fas fa-undo"></i></button>
-            <div class="dice-roller">
-                <input type="text" id="diceInput" placeholder="e.g., 3d6, d20" title="Enter dice notation like '2d6' or 'd20">
-                <button id="rollButton" title="Roll Dice"><i class="fas fa-dice"></i></button>
-                <div id="rollResult"></i></div>
-            </div>
             <div class="tools">
                 <div class="tool-option selected" data-tool="pen"><i class="fas fa-pen"></i></div>
                 <div class="tool-option" data-tool="eraser"><i class="fas fa-eraser"></i></div>
@@ -38,6 +33,11 @@
             </div>
             <button id="saveButton" title="Save Board"><i class="fas fa-save"></i></button>
             <button id="loadButton" title="Load Board"><i class="fas fa-folder-open"></i></button>
+            <div class="dice-roller">
+                <input type="text" id="diceInput" placeholder="e.g., 3d6, d20" title="Enter dice notation like '2d6' or 'd20">
+                <button id="rollButton" title="Roll Dice"><i class="fas fa-dice"></i></button>
+                <div id="rollResult"></i></div>
+            </div>
         </div>
         <div class="board-container">
             <canvas id="gameBoard"></canvas>
