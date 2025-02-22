@@ -323,6 +323,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 return;
             }
+            if (e.shiftKey) {
+                const currentSize = parseInt(marker.style.width) || 40;
+                const newSize = currentSize >= 60 ? 20 : currentSize + 20;
+                // Get current position and calculate center
+                const currentLeft = parseInt(marker.style.left);
+                const currentTop = parseInt(marker.style.top);
+                const sizeDiff = newSize - currentSize;
+                // Adjust position to maintain center point
+                marker.style.left = `${currentLeft - sizeDiff/2}px`;
+                marker.style.top = `${currentTop - sizeDiff/2}px`;
+                marker.style.width = `${newSize}px`;
+                marker.style.height = `${newSize}px`;
+                e.preventDefault();
+                return;
+            }
             selectedMarker = marker;
             const rect = marker.getBoundingClientRect();
             markerOffsetX = e.clientX - rect.left;
@@ -332,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         marker.addEventListener('mousedown', handleMarkerMouseDown);
         innerShadow.addEventListener('mousedown', handleMarkerMouseDown);
-        marker.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu
+        marker.addEventListener('contextmenu', (e) => e.preventDefault());
         markersLayer.appendChild(marker);
     }
 
