@@ -88,4 +88,35 @@
 button {
     padding: 5px 10px;
     cursor: pointer;
+}
+
+.tools {
+    display: flex;
+    gap: 5px;
+    padding: 5px;
+    background: #fff;
+    border-radius: 5px;
+}
+
+.tool-option {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 5px;
+}
+
+.tool-option.selected {
+    border-color: #333;
+    background: #eee;
+}
+
+#previewLayer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
 } 

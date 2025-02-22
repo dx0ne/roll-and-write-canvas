@@ -7,6 +7,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
     </style>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
     <div class="container">
@@ -24,6 +25,14 @@
                 <button id="rollButton">Roll</button>
                 <div id="rollResult"></div>
             </div>
+            <div class="tools">
+                <div class="tool-option selected" data-tool="pen"><i class="fas fa-pen"></i></div>
+                <div class="tool-option" data-tool="eraser"><i class="fas fa-eraser"></i></div>
+                <div class="tool-option" data-tool="line"><i class="fas fa-ruler"></i></div>
+                <div class="tool-option" data-tool="rectangle"><i class="far fa-square"></i></div>
+            </div>
+            <button id="saveButton">Save</button>
+            <button id="loadButton">Load</button>
         </div>
         <div class="board-container">
             <canvas id="gameBoard"></canvas>
