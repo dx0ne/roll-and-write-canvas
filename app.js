@@ -126,7 +126,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleMouseMove(e) {
-        if (!isDrawing) return;
+        if (!isDrawing) {
+            // Show eraser preview even when not drawing
+            if (currentTool === 'eraser') {
+                const pos = getMousePos(e);
+                previewCtx.clearRect(0, 0, canvas.width, canvas.height);
+                previewCtx.beginPath();
+                previewCtx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
+                previewCtx.strokeStyle = '#000000';
+                previewCtx.setLineDash([2, 2]);
+                previewCtx.stroke();
+                return;
+            }
+            return;
+        }
         
         const rect = canvas.getBoundingClientRect();
         const currentX = e.clientX - rect.left;
@@ -161,10 +174,18 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.globalCompositeOperation = 'source-atop';
             ctx.drawImage(tempCanvas, 0, 0);
             ctx.globalCompositeOperation = 'source-over';
+
+            // Update eraser preview position
+            previewCtx.clearRect(0, 0, canvas.width, canvas.height);
+            previewCtx.beginPath();
+            previewCtx.arc(currentX, currentY, 10, 0, Math.PI * 2);
+            previewCtx.strokeStyle = '#000000';
+            previewCtx.setLineDash([2, 2]);
+            previewCtx.stroke();
             return;
         }
 
-        // Clear previous preview
+        // Clear previous preview for other tools
         previewCtx.clearRect(0, 0, canvas.width, canvas.height);
         
         // Draw preview based on selected tool
@@ -207,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (currentTool === 'rectangle') {
             const width = endX - startX;
             const height = endY - startY;
-            ctx.strokeRect(startX, startY, width, height);
+            ctx.fillRect(startX, startY, width, height);
         }
         
         isDrawing = false;
@@ -273,6 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     canvas.addEventListener('mouseleave', () => {
         isDrawing = false;
+        previewCtx.clearRect(0, 0, canvas.width, canvas.height);
     });
 
     // Undo Function
