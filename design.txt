@@ -1,0 +1,5 @@
+create and app where i can do following things:
+1. upload an image - that will become board. scale image so it fits the screen. canvas shoyld match the image size.
+2. simple painter on that image with undo option and few predefined colors to pick from
+3. create and move around markers. user can add them by Ctrl + click on canvas
+4. roll number of different dice that i put in text field ( If i put 3d6 == gives result of 3 roll from 6 sided dice, d4 rolls one 4 sided die)

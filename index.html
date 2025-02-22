@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Roll And Write Canvas</title>
+    <style>
+        /* We'll move this to styles.css */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+    </style>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <input type="file" id="imageUpload" accept="image/*">
+            <div class="color-picker">
+                <div class="color-option selected" data-color="#000000" style="background-color: #000000"></div>
+                <div class="color-option" data-color="#ff0000" style="background-color: #ff0000"></div>
+                <div class="color-option" data-color="#00ff00" style="background-color: #00ff00"></div>
+                <div class="color-option" data-color="#0000ff" style="background-color: #0000ff"></div>
+            </div>
+            <button id="undoButton">Undo</button>
+            <div class="dice-roller">
+                <input type="text" id="diceInput" placeholder="e.g., 3d6, d20">
+                <button id="rollButton">Roll</button>
+                <div id="rollResult"></div>
+            </div>
+        </div>
+        <div class="board-container">
+            <canvas id="gameBoard"></canvas>
+            <div id="markersLayer"></div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html> 
