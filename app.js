@@ -318,6 +318,11 @@ document.addEventListener('DOMContentLoaded', () => {
         marker.appendChild(innerShadow);
 
         const handleMarkerMouseDown = (e) => {
+            if (e.ctrlKey) {
+                marker.remove();
+                e.preventDefault();
+                return;
+            }
             selectedMarker = marker;
             const rect = marker.getBoundingClientRect();
             markerOffsetX = e.clientX - rect.left;
@@ -327,18 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         marker.addEventListener('mousedown', handleMarkerMouseDown);
         innerShadow.addEventListener('mousedown', handleMarkerMouseDown);
+        marker.addEventListener('contextmenu', (e) => e.preventDefault()); // Prevent context menu
         markersLayer.appendChild(marker);
-
-        // Add right-click menu for marker customization
-        marker.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            const size = prompt('Enter marker size (20-60px):', '40');
-            if (size) {
-                const px = Math.min(60, Math.max(20, parseInt(size)));
-                marker.style.width = px + 'px';
-                marker.style.height = px + 'px';
-            }
-        });
     }
 
     document.addEventListener('mousemove', (e) => {

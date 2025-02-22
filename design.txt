@@ -3,6 +3,7 @@ IMPLEMENTED FEATURES:
    - Upload image functionality
    - Image scaling to fit screen
    - Canvas size matches image dimensions
+   - Save/load board state
 
 2. Drawing Tools
    - Basic painting functionality
@@ -37,6 +38,5 @@ POTENTIAL ENHANCEMENTS:
    - Visual dice animation
 
 4. General
-   - Save/load board state
    - Multiple layers support
    - Export/import functionality
