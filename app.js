@@ -384,17 +384,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Add save/load state functions
+    // Update the save/load state functions
     function saveState() {
         const state = {
             canvasData: canvas.toDataURL(),
+            canvasWidth: canvas.width,
+            canvasHeight: canvas.height,
             markers: Array.from(markersLayer.children).map(marker => ({
                 x: parseInt(marker.style.left),
                 y: parseInt(marker.style.top),
-                color: marker.style.backgroundColor
+                color: marker.style.backgroundColor,
+                width: marker.style.width || '40px',
+                height: marker.style.height || '40px'
             }))
         };
         localStorage.setItem('boardState', JSON.stringify(state));
+        alert('Board state saved!');
     }
 
     function loadState() {
@@ -402,21 +407,55 @@ document.addEventListener('DOMContentLoaded', () => {
         if (saved) {
             const state = JSON.parse(saved);
             
+            // Set canvas dimensions
+            canvas.width = state.canvasWidth;
+            canvas.height = state.canvasHeight;
+            markersLayer.style.width = state.canvasWidth + 'px';
+            markersLayer.style.height = state.canvasHeight + 'px';
+            
             // Load canvas
             const img = new Image();
             img.onload = () => {
                 ctx.drawImage(img, 0, 0);
+                originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 drawHistory = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
             };
             img.src = state.canvasData;
             
             // Load markers
             markersLayer.innerHTML = '';
-            state.markers.forEach(m => createMarker(m.x + 20, m.y + 20, m.color));
+            state.markers.forEach(m => {
+                const marker = document.createElement('div');
+                marker.className = 'marker';
+                marker.style.backgroundColor = m.color;
+                marker.style.left = `${m.x}px`;
+                marker.style.top = `${m.y}px`;
+                marker.style.width = m.width;
+                marker.style.height = m.height;
+                
+                const innerShadow = document.createElement('div');
+                innerShadow.className = 'marker-inner';
+                marker.appendChild(innerShadow);
+                
+                marker.addEventListener('mousedown', (e) => {
+                    selectedMarker = marker;
+                    const rect = marker.getBoundingClientRect();
+                    markerOffsetX = e.clientX - rect.left;
+                    markerOffsetY = e.clientY - rect.top;
+                    e.stopPropagation();
+                });
+                
+                markersLayer.appendChild(marker);
+            });
+            alert('Board state loaded!');
+        } else {
+            alert('No saved board state found!');
         }
     }
 
-    // Add save/load buttons to HTML
+    // Add button event listeners
+    document.getElementById('saveButton').addEventListener('click', saveState);
+    document.getElementById('loadButton').addEventListener('click', loadState);
 
     document.addEventListener('keydown', (e) => {
         if (e.ctrlKey) {
