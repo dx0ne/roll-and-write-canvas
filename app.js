@@ -313,16 +313,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Marker Functions
-    function createMarker(x, y, color) {
+    function createMarker(x, y, color, type = null, text = '') {
         const marker = document.createElement('div');
         marker.className = 'marker';
-        marker.style.backgroundColor = color;
-        marker.style.left = `${x - 20}px`;
-        marker.style.top = `${y - 20}px`;
         
-        const innerShadow = document.createElement('div');
-        innerShadow.className = 'marker-inner';
-        marker.appendChild(innerShadow);
+        if (type === 'die') {
+            marker.className = 'die rolled';  // Use die class instead of marker
+            marker.style.position = 'absolute';  // Keep positioning from marker
+            marker.style.cursor = 'move';  // Keep cursor style
+            marker.style.pointerEvents = 'auto';
+            marker.style.userSelect = 'none';
+            marker.style.left = `${x}px`;
+            marker.style.top = `${y}px`;
+            marker.innerHTML = text;  // Set die text directly
+        } else {
+            marker.style.backgroundColor = color;
+            marker.style.left = `${x}px`;
+            marker.style.top = `${y}px`;
+            
+
+        }
 
         const handleMarkerMouseDown = (e) => {
             if (e.ctrlKey) {
@@ -370,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         marker.addEventListener('mousedown', handleMarkerMouseDown);
-        innerShadow.addEventListener('mousedown', handleMarkerMouseDown);
+
         marker.addEventListener('contextmenu', (e) => e.preventDefault());
         markersLayer.appendChild(marker);
     }
@@ -411,7 +421,18 @@ document.addEventListener('DOMContentLoaded', () => {
             faces = Array.from({length: sides}, (_, i) => i + 1);
         }
         
-        function rollThisDie() {
+        function rollThisDie(e) {
+            // Check for Ctrl+Click to create marker
+            if (e && e.ctrlKey) {
+                const rect = diceContainer.getBoundingClientRect();
+                const dieRect = die.getBoundingClientRect();
+                const x = dieRect.left - rect.left + (dieRect.width / 2);
+                const y = dieRect.top - rect.top + (dieRect.height / 2);
+                createMarker(x, y, '#000000', 'die', die.innerHTML);
+                return;
+            }
+
+            // Normal roll behavior
             die.classList.remove('rolled');
             const rollClass = Math.random() < 0.5 ? 'roll-left' : 'roll-right';
             die.classList.add(rollClass);
@@ -433,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         die.addEventListener('click', rollThisDie);
         die.style.cursor = 'pointer';
-        die.title = 'Click to reroll this die';
+        die.title = 'Click to reroll this die\nCtrl+Click to create marker';
         rollThisDie();
         return die;
     }
@@ -478,6 +499,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     diceInput.id = 'diceInput';
                     diceInput.type = 'text';
                     diceInput.placeholder = 'e.g., 3d6, d20';
+                    diceInput.style.height = '32px';
+                    diceInput.style.boxSizing = 'border-box';
                 }
                 inputGroup.appendChild(diceInput);
 
@@ -657,13 +680,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 canvasData: canvas.toDataURL(),
                 canvasWidth: canvas.width,
                 canvasHeight: canvas.height,
-                markers: Array.from(markersLayer.children).map(marker => ({
-                    x: parseInt(marker.style.left),
-                    y: parseInt(marker.style.top),
-                    color: marker.style.backgroundColor,
-                    width: marker.style.width || '40px',
-                    height: marker.style.height || '40px'
-                }))
+                markers: Array.from(markersLayer.children).map(marker => {
+                    const isdie = marker.classList.contains('die');
+                    return {
+                        x: parseInt(marker.style.left),
+                        y: parseInt(marker.style.top),
+                        width: marker.style.width || '40px',
+                        height: marker.style.height || '40px',
+                        type: isdie ? 'die' : 'marker',
+                        // Store either background color or die text depending on type
+                        value: isdie ? marker.innerHTML : marker.style.backgroundColor
+                    };
+                })
             };
             localStorage.setItem('boardState', JSON.stringify(state));
             showNotification('Board state saved successfully!');
@@ -704,32 +732,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // Load markers
             markersLayer.innerHTML = '';
             state.markers.forEach(m => {
-                const marker = document.createElement('div');
-                marker.className = 'marker';
-                marker.style.backgroundColor = m.color;
-                marker.style.left = `${m.x}px`;
-                marker.style.top = `${m.y}px`;
+                if (m.type === 'die') {
+                    createMarker(m.x, m.y, null, 'die', m.value);
+                } else {
+                    createMarker(m.x, m.y, m.value);
+                }
+                
+                // Update size if different from default
+                const marker = markersLayer.lastElementChild;
                 marker.style.width = m.width;
                 marker.style.height = m.height;
-                
-                const innerShadow = document.createElement('div');
-                innerShadow.className = 'marker-inner';
-                marker.appendChild(innerShadow);
-                
-                marker.addEventListener('mousedown', (e) => {
-                    if (e.ctrlKey) {
-                        marker.remove();
-                        e.preventDefault();
-                        return;
-                    }
-                    selectedMarker = marker;
-                    const rect = marker.getBoundingClientRect();
-                    markerOffsetX = e.clientX - rect.left;
-                    markerOffsetY = e.clientY - rect.top;
-                    e.stopPropagation();
-                });
-                
-                markersLayer.appendChild(marker);
             });
         } catch (error) {
             showNotification('Failed to load board state', 'error');
