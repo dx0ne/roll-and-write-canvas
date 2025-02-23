@@ -395,8 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Add this before the roll button event listener
     const customDiceSets = {
-        'd6': ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'],  // Default Unicode dice
-        'dsymbols': ['▲', '■', '●', '★'],  // Example symbol dice
+
     };
 
     function createDie(sides, diceContainer, updateTotal, diceType = null) {
@@ -446,6 +445,79 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         customDiceSets[name.toLowerCase()] = faces;
         showNotification(`Dice set "${name}" registered successfully!`);
+        updateCustomDicePreview();
+    }
+
+    // Add this new function after registerDiceSet
+    function updateCustomDicePreview() {
+        let dropdownContainer = document.getElementById('customDiceDropdown');
+        if (!dropdownContainer) {
+            // Create dropdown button
+            const dropdownBtn = document.createElement('button');
+            dropdownBtn.id = 'customDiceBtn';
+            dropdownBtn.className = 'tool-option';
+            dropdownBtn.innerHTML = '<i class="fas fa-dice"></i>';
+            dropdownBtn.title = 'Custom Dice Sets';
+
+            // Create dropdown content
+            dropdownContainer = document.createElement('div');
+            dropdownContainer.id = 'customDiceDropdown';
+            dropdownContainer.className = 'custom-dice-dropdown';
+
+            // Add to the tools section
+            const diceRoller = document.querySelector('.dice-roller');
+            if (diceRoller) {
+                diceRoller.appendChild(dropdownBtn);
+                diceRoller.appendChild(dropdownContainer);
+            }
+
+            // Toggle dropdown
+            dropdownBtn.onclick = (e) => {
+                e.stopPropagation();
+                dropdownContainer.classList.toggle('show');
+            };
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!dropdownContainer.contains(e.target) && !dropdownBtn.contains(e.target)) {
+                    dropdownContainer.classList.remove('show');
+                }
+            });
+        }
+
+        // Clear existing previews
+        dropdownContainer.innerHTML = '';
+
+        // Add preview for each custom dice set
+        Object.entries(customDiceSets).forEach(([name, faces]) => {
+            const dicePreview = document.createElement('div');
+            dicePreview.className = 'dice-preview-item';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = `${name}: `;
+            nameSpan.className = 'dice-name';
+            dicePreview.appendChild(nameSpan);
+
+            const facesSpan = document.createElement('span');
+            facesSpan.textContent = faces.join(' ');
+            facesSpan.className = 'dice-faces';
+            dicePreview.appendChild(facesSpan);
+
+            dicePreview.onclick = () => {
+                document.getElementById('diceInput').value = name;
+                document.getElementById('rollButton').click();
+                dropdownContainer.classList.remove('show');
+            };
+
+            dropdownContainer.appendChild(dicePreview);
+        });
+
+        if (Object.keys(customDiceSets).length === 0) {
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'dice-preview-item empty';
+            emptyMessage.textContent = 'No custom dice sets available';
+            dropdownContainer.appendChild(emptyMessage);
+        }
     }
 
     // Modify the roll button click handler
@@ -506,7 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             document.getElementById('rollResult').innerHTML = hasNonNumeric ? 
-                `Results shown above` : 
+                `` : 
                 `Total: ${total}`;
         };
 
@@ -644,8 +716,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     registerDiceSet('Symbols', ['▲', '■', '●', '★']);  // Can be used as 3dSymbols
-    registerDiceSet('YesNo', ['Yes', 'No', 'Maybe']);  // Can be used as 2dYesNo
-    registerDiceSet('Elements', ['🔥', '💧', '🌪️', '⛰️']);  // Can be used as dElements
+    registerDiceSet('Thumbs', ['👍', '👎']);  // Can be used as 2dYesNo
+    registerDiceSet('PaperRockScissors', ['✋', '✌️', '✊']);  // Can be used as dElements
+    registerDiceSet('6', ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅']);  // Can be used as dElements
+
 
     function addCustomFace() {
         const customFaceInput = document.querySelector('.custom-face-input');
@@ -670,5 +744,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } 
     
+    updateCustomDicePreview(); // Initial preview update
 }); 
 
