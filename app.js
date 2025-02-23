@@ -3,6 +3,10 @@ let currentColor = '#000000';
 let currentTool = 'pen';
 let originalImageData = null;  // Add this to store original image state
 
+
+// Create GraphemeSplitter instance at the top level
+const gs = new GraphemeSplitter();
+
 document.addEventListener('DOMContentLoaded', () => {
     canvas = document.getElementById('gameBoard');
     ctx = canvas.getContext('2d');
@@ -647,16 +651,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const customFaceInput = document.querySelector('.custom-face-input');
         const input = customFaceInput.value.trim();
         
-        // Simplified pattern to match "Name [faces]"
         const match = input.match(/^(\w+)\s*\[(.*)\]$/);
-        
+
         if (match) {
             const [_, name, faces] = match;
-            let faceArray = Array.from(faces.trim());
-            //remove empty strings from array
-            faceArray = faceArray.filter(face => face.trim() !== '');
+            // Use the previously created gs instance
+            const faceArray = gs.splitGraphemes(faces);
+            console.log("faceArray", faceArray);
             if (faceArray.length > 0) {
-                console.log(name, faceArray);
                 registerDiceSet(name, faceArray);
                 customFaceInput.value = ''; // Clear the input
                 showNotification(`Dice set "${name}" added with ${faceArray.length} faces!`, 'success');
@@ -664,7 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showNotification('No faces provided in brackets', 'error');
             }
         } else {
-            showNotification('Invalid format. Use: Name [faces] (e.g., Combat [💀⚔️🛡️])', 'error');
+            showNotification('Invalid format. Use: Name [faces] (e.g., Combat [🗡⚔️🛡])', 'error');
         }
     } 
     
