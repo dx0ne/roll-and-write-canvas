@@ -304,10 +304,21 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('mousedown', (e) => {
         const pos = getMousePos(e);
         if (e.ctrlKey) {
+            if(e.shiftKey) {
+                createCounter(pos.x, pos.y);
+                return;
+            }
             createMarker(pos.x, pos.y, currentColor);
             return;
         }
-
+        if (currentTool === 'counter') {
+            createCounter(pos.x, pos.y);
+            currentTool = 'pen';
+            document.querySelector('.tool-option.selected')?.classList.remove('selected');
+            //find the tool-option with data-tool="counter" and add the selected class
+            document.querySelector('.tool-option[data-tool="pen"]')?.classList.add('selected'); 
+            return;
+        }
         handleMouseDown(e);
 
         if (currentTool === 'pen') {
@@ -787,6 +798,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 canvasWidth: canvas.width,
                 canvasHeight: canvas.height,
                 markers: Array.from(markersLayer.children).map(marker => {
+                    if (marker.classList.contains('counter-container')) {
+                        return {
+                            x: parseInt(marker.style.left),
+                            y: parseInt(marker.style.top),
+                            type: 'counter',
+                            name: marker.querySelector('.counter-name').textContent,
+                            value: marker.querySelector('.counter-value').textContent,
+                            color: marker.style.backgroundColor,
+                        };
+                    }
                     const isdie = marker.classList.contains('die');
                     return {
                         x: parseInt(marker.style.left),
@@ -795,7 +816,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         height: marker.style.height || '40px',
                         type: isdie ? 'die' : 'marker',
                         // Store either background color or die text depending on type
-                        value: isdie ? marker.innerHTML : marker.style.backgroundColor
+                        value: isdie ? marker.innerHTML : marker.style.backgroundColor,
+                        color: marker.style.backgroundColor,
                     };
                 })
             };
@@ -834,14 +856,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 showNotification('Failed to load board image', 'error');
             };
             img.src = state.canvasData;
-            
+            console.log("state.markers", state.markers);
             // Load markers
             markersLayer.innerHTML = '';
             state.markers.forEach(m => {
-                if (m.type === 'die') {
+                console.log("m", m);    
+                if (m.type === 'counter') {
+                    
+                    let counter = createCounter(m.x, m.y);
+                    counter.querySelector('.counter-name').textContent = m.name;
+                    counter.querySelector('.counter-value').textContent = m.value;
+                    counter.style.backgroundColor = m.color;
+                } else if (m.type === 'die') {
                     createMarker(m.x, m.y, null, 'die', m.value);
                 } else {
-                    createMarker(m.x, m.y, m.value);
+                    createMarker(m.x, m.y, m.color);
                 }
                 
                 // Update size if different from default
@@ -915,5 +944,79 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update dice input placeholder
     const diceInput = document.getElementById('diceInput');
     diceInput.placeholder = 'e.g., 3d6, d20';
+
+    function createCounter(x, y) {
+        console.log("createCounter", x, y);
+        const counter = document.createElement('div');
+        counter.className = 'counter-container';
+        counter.style.position = 'absolute';
+        counter.style.left = `${x}px`;
+        counter.style.top = `${y}px`;
+        counter.style.backgroundColor = currentColor;
+    
+        // Create name label (editable)
+        const nameLabel = document.createElement('div');
+        nameLabel.className = 'counter-name';
+        nameLabel.contentEditable = true;
+        nameLabel.textContent = 'Counter';
+        counter.appendChild(nameLabel);
+    
+        // Create counter controls
+        const controls = document.createElement('div');
+        controls.className = 'counter-controls';
+    
+        const minusBtn = document.createElement('button');
+        minusBtn.textContent = '-';
+        minusBtn.className = 'counter-btn';
+    
+        const valueDisplay = document.createElement('span');
+        valueDisplay.className = 'counter-value';
+        valueDisplay.textContent = '0';
+        valueDisplay.contentEditable = true;
+
+    
+        const plusBtn = document.createElement('button');
+        plusBtn.textContent = '+';
+        plusBtn.className = 'counter-btn';
+    
+        controls.appendChild(minusBtn);
+        controls.appendChild(valueDisplay);
+        controls.appendChild(plusBtn);
+        counter.appendChild(controls);
+    
+        // Add counter functionality
+        minusBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const tvalue = parseInt(valueDisplay.textContent)-1;
+            valueDisplay.textContent = tvalue;
+        });
+    
+        plusBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const tvalue = parseInt(valueDisplay.textContent)+1;
+            valueDisplay.textContent = tvalue;
+        });
+    
+        // Add dragging functionality
+        counter.addEventListener('mousedown', (e) => {
+            if (e.target === nameLabel || e.target.className === 'counter-btn' || e.target.className === 'counter-value') {
+                return;
+            }
+            if (e.ctrlKey) {
+                counter.remove();
+                return;
+            }
+           
+            selectedMarker = counter;
+            const rect = counter.getBoundingClientRect();
+            markerOffsetX = e.clientX - rect.left;
+            markerOffsetY = e.clientY - rect.top;
+        });
+    
+        markersLayer.appendChild(counter);
+
+        return counter;
+    }
+
 }); 
 

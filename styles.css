@@ -353,4 +353,59 @@ i {
 #diceInput::placeholder {
     color: #999;
     font-style: italic;
-} 
+}
+
+.counter-container {
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 1000;
+    pointer-events: auto;
+    cursor: move;
+    user-select: none;
+}
+.counter-name {
+    font-weight: bold;
+    margin-bottom: 5px;
+    min-width: 50px;
+    padding: 2px;
+    cursor: text;
+}
+.counter-name:focus {
+    outline: 1px solid #007bff;
+    border-radius: 2px;
+}
+.counter-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.counter-btn {
+
+    height: 20px;
+}
+.counter-btn:hover {
+    background: #0056b3;
+}
+.counter-value {
+    min-width: 20px;
+    text-align: center;
+    cursor: text;
+}
+/*
+button, .tool-option, .file-upload-label {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+    */
