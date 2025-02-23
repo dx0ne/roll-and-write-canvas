@@ -2,6 +2,7 @@ let canvas, ctx, previewCtx;
 let currentColor = '#000000';
 let currentTool = 'pen';
 let originalImageData = null;  // Add this to store original image state
+let originalImage = null;  // Add this to store the Image object
 
 
 // Create GraphemeSplitter instance at the top level
@@ -26,13 +27,17 @@ document.addEventListener('DOMContentLoaded', () => {
     addCustomFaceButton.addEventListener('click', addCustomFace);   
 
     function calculateFitScale(imgWidth, imgHeight) {
-        const padding = 40;
-        const maxWidth = window.innerWidth - padding;
-        const maxHeight = window.innerHeight - padding * 4;
+        // Account for any padding/margins in addition to controls height
+        const controlsHeight = document.querySelector('.controls').offsetHeight;
+        const windowWidth = window.innerWidth - 20; // Account for scrollbar width and any margins
+        const windowHeight = window.innerHeight - controlsHeight - 20; // Account for margins/padding
         
-        const scaleX = maxWidth / imgWidth;
-        const scaleY = maxHeight / imgHeight;
-        return Math.min(scaleX, scaleY, 1);
+        // Calculate scales to fill width and height
+        const scaleX = windowWidth / imgWidth;
+        const scaleY = windowHeight / imgHeight;
+        
+        // Use the smaller scale to ensure the image fits within the screen
+        return Math.min(scaleX, scaleY);
     }
 
     // Image Upload Handler
@@ -43,22 +48,59 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = () => {
+                    originalImage = img;
                     originalWidth = img.width;
                     originalHeight = img.height;
                     
-                    const scale = calculateFitScale(originalWidth, originalHeight);
-                    canvas.width = originalWidth * scale;
-                    canvas.height = originalHeight * scale;
-                    markersLayer.style.width = canvas.width + 'px';
-                    markersLayer.style.height = canvas.height + 'px';
+                    // Account for margins/padding in canvas dimensions
+                    const controlsHeight = document.querySelector('.controls').offsetHeight;
+                    canvas.width = window.innerWidth - 20;
+                    canvas.height = window.innerHeight - controlsHeight - 20;
                     
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);  // Store original state
+                    // Apply the same dimensions to markers layer
+                    markersLayer.style.width = `${canvas.width}px`;
+                    markersLayer.style.height = `${canvas.height}px`;
+                    
+                    // Calculate scale to fill screen
+                    const scale = calculateFitScale(originalWidth, originalHeight);
+                    
+                    // Calculate centered position for the scaled image
+                    const scaledWidth = originalWidth * scale;
+                    const scaledHeight = originalHeight * scale;
+                    const x = (canvas.width - scaledWidth) / 2;
+                    const y = (canvas.height - scaledHeight) / 2;
+                    
+                    // Draw image centered and scaled
+                    ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+                    originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     drawHistory = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
+        }
+    });
+
+    // Add this after the image upload handler
+    window.addEventListener('resize', () => {
+        if (originalImage) {
+            const controlsHeight = document.querySelector('.controls').offsetHeight;
+            canvas.width = window.innerWidth - 20;
+            canvas.height = window.innerHeight - controlsHeight - 20;
+            markersLayer.style.width = `${canvas.width}px`;
+            markersLayer.style.height = `${canvas.height}px`;
+            
+            // Recalculate scale and position
+            const scale = calculateFitScale(originalWidth, originalHeight);
+            const scaledWidth = originalWidth * scale;
+            const scaledHeight = originalHeight * scale;
+            const x = (canvas.width - scaledWidth) / 2;
+            const y = (canvas.height - scaledHeight) / 2;
+            
+            // Redraw image
+            ctx.drawImage(originalImage, x, y, scaledWidth, scaledHeight);
+            originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            drawHistory = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
         }
     });
 
