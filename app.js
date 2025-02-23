@@ -3,6 +3,8 @@ let currentColor = '#000000';
 let currentTool = 'pen';
 let originalImageData = null;  // Add this to store original image state
 let originalImage = null;  // Add this to store the Image object
+let rollHistory = [];
+const MAX_ROLL_HISTORY = 10;  // Maximum number of rolls to remember
 
 
 // Create GraphemeSplitter instance at the top level
@@ -471,7 +473,6 @@ document.addEventListener('DOMContentLoaded', () => {
         die.className = 'die';
         diceContainer.appendChild(die);
         
-        // Get faces based on diceType or fallback to numeric
         let faces;
         if (diceType && customDiceSets[diceType]) {
             faces = customDiceSets[diceType];
@@ -480,16 +481,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         function rollThisDie(e) {
-            // Check for Ctrl+Click to create marker
             if (e && e.ctrlKey) {
                 const rect = canvas.getBoundingClientRect();
-                const x = rect.width / 2;  // Center X
-                const y = rect.height / 2; // Center Y
+                const x = rect.width / 2;
+                const y = rect.height / 2;
                 createMarker(x, y, '#000000', 'die', die.innerHTML);
                 return;
             }
     
-            // Normal roll behavior
             die.classList.remove('rolled');
             const rollClass = Math.random() < 0.5 ? 'roll-left' : 'roll-right';
             die.classList.add(rollClass);
@@ -634,7 +633,80 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Modify the roll button click handler
+    // Add after the updateCustomDicePreview function
+    function updateRollHistory() {
+        console.log("updateRollHistory", rollHistory);
+        let historyDropdown = document.getElementById('rollHistoryDropdown');
+        if (!historyDropdown) {
+            // Create history dropdown container
+            historyDropdown = document.createElement('div');
+            historyDropdown.id = 'rollHistoryDropdown';
+            historyDropdown.className = 'roll-history-dropdown';
+
+            // Create history button
+            const historyBtn = document.createElement('button');
+            historyBtn.id = 'historyBtn';
+            historyBtn.className = 'tool-option';
+            historyBtn.innerHTML = '<i class="fas fa-history"></i>';
+            historyBtn.title = 'Roll History';
+
+            // Add button to input group
+            const inputGroup = document.querySelector('.dice-input-group');
+            if (inputGroup) {
+                inputGroup.appendChild(historyBtn);
+                inputGroup.appendChild(historyDropdown);
+            }
+
+            // Set up click handlers
+            historyBtn.onclick = (e) => {
+                e.stopPropagation();
+                historyDropdown.classList.toggle('show');
+            };
+
+            document.addEventListener('click', (e) => {
+                if (!historyDropdown.contains(e.target) && !historyBtn.contains(e.target)) {
+                    historyDropdown.classList.remove('show');
+                }
+            });
+        }
+
+        // Clear existing history
+        historyDropdown.innerHTML = '';
+
+        // Add each roll to history
+        rollHistory.forEach(roll => {
+            const historyItem = document.createElement('div');
+            historyItem.className = 'history-item';
+            
+            const rollInput = document.createElement('span');
+            rollInput.className = 'roll-input';
+            rollInput.textContent = roll.input;
+            
+            const rollResult = document.createElement('span');
+            rollResult.className = 'roll-result';
+            rollResult.textContent = roll.results.join(', ');
+            
+            historyItem.appendChild(rollInput);
+            historyItem.appendChild(rollResult);
+
+            // Click to reuse this roll input
+            historyItem.onclick = () => {
+                document.getElementById('diceInput').value = roll.input;
+                historyDropdown.classList.remove('show');
+            };
+
+            historyDropdown.appendChild(historyItem);
+        });
+
+        if (rollHistory.length === 0) {
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'history-item empty';
+            emptyMessage.textContent = 'No roll history';
+            historyDropdown.appendChild(emptyMessage);
+        }
+    }
+
+    // Modify the roll button click handler to track history
     document.getElementById('rollButton').addEventListener('click', () => {
         const input = document.getElementById('diceInput').value.trim();
         
@@ -675,6 +747,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Clear total
                 const rollResult = document.getElementById('rollResult');
                 if (rollResult) rollResult.innerHTML = '';
+                
+                // After dice are created, collect results and update history
+                setTimeout(() => {
+                    const dice = diceContainer.querySelectorAll('.die');
+                    const results = Array.from(dice).map(die => die.innerHTML);
+                    
+                    rollHistory.unshift({ input, results });
+                    if (rollHistory.length > MAX_ROLL_HISTORY) {
+                        rollHistory.pop();
+                    }
+                    
+                    updateRollHistory();
+                }, 1100); // Slightly longer than roll animation
                 
                 return;
             }
@@ -741,6 +826,18 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < count; i++) {
             createDie(sides, diceContainer, updateTotal, diceType);
         }
+                // After dice are created, collect results and update history
+                setTimeout(() => {
+                    const dice = diceContainer.querySelectorAll('.die');
+                    const results = Array.from(dice).map(die => die.innerHTML);
+                    
+                    rollHistory.unshift({ input, results });
+                    if (rollHistory.length > MAX_ROLL_HISTORY) {
+                        rollHistory.pop();
+                    }
+                    
+                    updateRollHistory();
+                }, 1100); // Slightly longer than roll animation
     });
 
     function makeMarkerFromDice(e) {
