@@ -842,7 +842,7 @@ document.addEventListener('DOMContentLoaded', () => {
     registerDiceSet('Colors', ['🔴', '🟠', '🟡', '🟢', '🔵', '🟣']);  // Can be used as 3dSymbols
     registerDiceSet('Thumbs', ['👍', '👎']);  // Can be used as 2dYesNo
     registerDiceSet('PaperRockScissors', ['✋', '✌️', '✊']);  // Can be used as dElements
-    registerDiceSet('6', ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅']);  // Can be used as dElements
+    registerDiceSet('SixPips', ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅']);  // Can be used as dElements
 
 
     function addCustomFace() {
