@@ -222,6 +222,7 @@ i {
     color: rgba(34, 34, 34, 0.9);
     box-shadow: 0px 3px 0px -1px rgb(0 0 0 / 60%);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    user-select: none;
 }
 
 .die:hover {

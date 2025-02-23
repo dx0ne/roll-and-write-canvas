@@ -578,6 +578,48 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modify the roll button click handler
     document.getElementById('rollButton').addEventListener('click', () => {
         const input = document.getElementById('diceInput').value.trim();
+        
+        // Add check for .dN format
+        if (input.startsWith('.d')) {
+            const diceType = input.slice(1).toLowerCase(); // Get the full dice type (e.g., 'd6' or 'dsymbols')
+            let allValues;
+            
+            if (customDiceSets[diceType]) {
+                // Use custom dice faces if available
+                allValues = [...customDiceSets[diceType]];
+            } else {
+                // Otherwise use numeric values
+                const sides = parseInt(input.slice(2));
+                if (!isNaN(sides)) {
+                    allValues = Array.from({length: sides}, (_, i) => i + 1);
+                }
+            }
+
+            if (allValues) {
+                // Shuffle array using Fisher-Yates algorithm
+                for (let i = allValues.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [allValues[i], allValues[j]] = [allValues[j], allValues[i]];
+                }
+                
+                createDiceContainer();
+                
+                // Create die for each value
+                allValues.forEach(value => {
+                    const die = document.createElement('div');
+                    die.className = 'die rolled';
+                    die.innerHTML = value;
+                    diceContainer.appendChild(die);
+                });
+                
+                // Clear total
+                const rollResult = document.getElementById('rollResult');
+                if (rollResult) rollResult.innerHTML = '';
+                
+                return;
+            }
+        }
+
         const diceRegex = /^(\d+)?d(\d+|[A-Za-z]+)$/i;
         const match = input.match(diceRegex);
         
@@ -607,30 +649,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Create diceContainer if it doesn't exist
-        let diceContainer = document.getElementById('diceContainer');
-        if (!diceContainer) {
-            diceContainer = document.createElement('div');
-            diceContainer.id = 'diceContainer';
-            
-            // Find the dice-roller container
-            const diceRoller = document.querySelector('.dice-roller');
-            if (diceRoller) {
-                // Create a container for results if it doesn't exist
-                let resultsContainer = document.getElementById('rollResult');
-                if (!resultsContainer) {
-                    resultsContainer = document.createElement('div');
-                    resultsContainer.id = 'rollResult';
-                    diceRoller.appendChild(resultsContainer);
-                }
-                
-                // Insert diceContainer before rollResult
-                diceRoller.insertBefore(diceContainer, resultsContainer);
-            }
-        }
-
-        // Clear existing dice
-        diceContainer.innerHTML = '';
+        createDiceContainer();
 
         const updateTotal = () => {
             const dice = diceContainer.querySelectorAll('.die');
@@ -657,6 +676,28 @@ document.addEventListener('DOMContentLoaded', () => {
             createDie(sides, diceContainer, updateTotal, diceType);
         }
     });
+
+    function createDiceContainer() {
+        // Create or get diceContainer
+        let diceContainer = document.getElementById('diceContainer');
+        if (!diceContainer) {
+            diceContainer = document.createElement('div');
+            diceContainer.id = 'diceContainer';
+            const diceRoller = document.querySelector('.dice-roller');
+            if (diceRoller) {
+                let resultsContainer = document.getElementById('rollResult');
+                if (!resultsContainer) {
+                    resultsContainer = document.createElement('div');
+                    resultsContainer.id = 'rollResult';
+                    diceRoller.appendChild(resultsContainer);
+                }
+                diceRoller.insertBefore(diceContainer, resultsContainer);
+            }
+        }
+        
+        // Clear existing dice
+        diceContainer.innerHTML = '';
+    }
 
     function showNotification(message, type = 'success') {
         console.log('Showing notification:', message, type);
