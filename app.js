@@ -281,6 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (currentTool === 'rectangle') {
             const width = endX - startX;
             const height = endY - startY;
+            ctx.fillStyle = currentColor;
             ctx.fillRect(startX, startY, width, height);
         }
         
