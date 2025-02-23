@@ -1,1 +1,1 @@
-Demo at https://dx0ne.github.io/RollAndWriteCanvas/
+Use at https://dx0ne.github.io/roll-and-write-canvas/

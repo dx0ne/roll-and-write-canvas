@@ -9,8 +9,10 @@ IMPLEMENTED FEATURES:
    - Basic painting functionality
    - Line tool
    - Rectangle tool
-   - Undo capability
+   - Undo capability (with Ctrl+Z support)
    - Color picker with predefined colors
+   - Counter tool with editable name/value
+   - Eraser tool
 
 3. Marker System
    - Add markers via Ctrl + click
@@ -24,21 +26,32 @@ IMPLEMENTED FEATURES:
    - Displays individual roll results
    - Dice can be rerolled
    - Visual dice animation
+   - Custom dice sets with emoji support
+   - Predefined special dice sets (Thumbs, PaperRockScissors, SixPips)
+   - Roll history
 
 POTENTIAL ENHANCEMENTS:
 1. Drawing Tools
    - Brush size adjustment
    - Save/export drawing
    - Different brush types
+   - Circle/oval tool
+   - Text tool
 
 2. Marker System
    - Custom marker styles
    - Marker labels/notes
+   - Marker categories/groups
+   - Marker snap-to-grid
 
 3. Dice Rolling
-   - Roll history
-   - Custom dice faces
+   - Custom dice faces with images
+   - Dice roll statistics
+   - Dice roll macros/presets
 
 4. General
    - Multiple layers support
    - Export/import functionality
+   - Keyboard shortcuts
+   - Touch screen optimization
+   - Collaborative features
