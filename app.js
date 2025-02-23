@@ -452,37 +452,69 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateCustomDicePreview() {
         let dropdownContainer = document.getElementById('customDiceDropdown');
         if (!dropdownContainer) {
-            // Create dropdown button
-            const dropdownBtn = document.createElement('button');
-            dropdownBtn.id = 'customDiceBtn';
-            dropdownBtn.className = 'tool-option';
-            dropdownBtn.innerHTML = '<i class="fas fa-dice"></i>';
-            dropdownBtn.title = 'Custom Dice Sets';
-
-            // Create dropdown content
+            // Create dropdown container
             dropdownContainer = document.createElement('div');
             dropdownContainer.id = 'customDiceDropdown';
             dropdownContainer.className = 'custom-dice-dropdown';
 
-            // Add to the tools section
-            const diceRoller = document.querySelector('.dice-roller');
-            if (diceRoller) {
-                diceRoller.appendChild(dropdownBtn);
-                diceRoller.appendChild(dropdownContainer);
+            // Find or create the dice roller container
+            let diceRoller = document.querySelector('.dice-roller');
+            if (!diceRoller) {
+                diceRoller = document.createElement('div');
+                diceRoller.className = 'dice-roller';
+                document.body.appendChild(diceRoller);
             }
 
-            // Toggle dropdown
-            dropdownBtn.onclick = (e) => {
-                e.stopPropagation();
-                dropdownContainer.classList.toggle('show');
-            };
+            // Create input group if it doesn't exist
+            let inputGroup = document.querySelector('.dice-input-group');
+            if (!inputGroup) {
+                inputGroup = document.createElement('div');
+                inputGroup.className = 'dice-input-group';
 
-            // Close dropdown when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!dropdownContainer.contains(e.target) && !dropdownBtn.contains(e.target)) {
-                    dropdownContainer.classList.remove('show');
+                // Create or get input field
+                let diceInput = document.getElementById('diceInput');
+                if (!diceInput) {
+                    diceInput = document.createElement('input');
+                    diceInput.id = 'diceInput';
+                    diceInput.type = 'text';
+                    diceInput.placeholder = 'e.g., 3d6, d20';
                 }
-            });
+                inputGroup.appendChild(diceInput);
+
+                // Create or get roll button
+                let rollButton = document.getElementById('rollButton');
+                if (!rollButton) {
+                    rollButton = document.createElement('button');
+                    rollButton.id = 'rollButton';
+                    rollButton.innerHTML = '<i class="fas fa-dice"></i>';
+                }
+                inputGroup.appendChild(rollButton);
+
+                // Create custom dice button
+                const customDiceBtn = document.createElement('button');
+                customDiceBtn.id = 'customDiceBtn';
+                customDiceBtn.className = 'tool-option';
+                customDiceBtn.innerHTML = '<i class="fas fa-list"></i>';
+                customDiceBtn.title = 'Custom Dice Sets';
+                inputGroup.appendChild(customDiceBtn);
+
+                // Add input group to dice roller
+                diceRoller.innerHTML = '';
+                diceRoller.appendChild(inputGroup);
+                diceRoller.appendChild(dropdownContainer);
+
+                // Set up click handlers
+                customDiceBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    dropdownContainer.classList.toggle('show');
+                };
+
+                document.addEventListener('click', (e) => {
+                    if (!dropdownContainer.contains(e.target) && !customDiceBtn.contains(e.target)) {
+                        dropdownContainer.classList.remove('show');
+                    }
+                });
+            }
         }
 
         // Clear existing previews
@@ -523,7 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modify the roll button click handler
     document.getElementById('rollButton').addEventListener('click', () => {
         const input = document.getElementById('diceInput').value.trim();
-        const diceRegex = /^(\d+)?d(\d+|[A-Za-z]+)$/i;  // Updated regex to better handle dice notation
+        const diceRegex = /^(\d+)?d(\d+|[A-Za-z]+)$/i;
         const match = input.match(diceRegex);
         
         if (!match && input) {
@@ -539,12 +571,10 @@ document.addEventListener('DOMContentLoaded', () => {
             count = parseInt(match[1]) || 1;
             const typeOrSides = match[2].toLowerCase();
             
-            // If it's a named dice set
             if (customDiceSets['d' + typeOrSides]) {
                 diceType = 'd' + typeOrSides;
                 sides = customDiceSets[diceType].length;
             } else {
-                // Try to parse as number (e.g., d20)
                 sides = parseInt(typeOrSides);
                 
                 if (isNaN(sides)) {
@@ -554,12 +584,29 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Create diceContainer if it doesn't exist
         let diceContainer = document.getElementById('diceContainer');
         if (!diceContainer) {
             diceContainer = document.createElement('div');
             diceContainer.id = 'diceContainer';
-            document.getElementById('rollResult').parentNode.insertBefore(diceContainer, document.getElementById('rollResult'));
+            
+            // Find the dice-roller container
+            const diceRoller = document.querySelector('.dice-roller');
+            if (diceRoller) {
+                // Create a container for results if it doesn't exist
+                let resultsContainer = document.getElementById('rollResult');
+                if (!resultsContainer) {
+                    resultsContainer = document.createElement('div');
+                    resultsContainer.id = 'rollResult';
+                    diceRoller.appendChild(resultsContainer);
+                }
+                
+                // Insert diceContainer before rollResult
+                diceRoller.insertBefore(diceContainer, resultsContainer);
+            }
         }
+
+        // Clear existing dice
         diceContainer.innerHTML = '';
 
         const updateTotal = () => {
@@ -577,9 +624,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             
-            document.getElementById('rollResult').innerHTML = hasNonNumeric ? 
-                `` : 
-                `Total: ${total}`;
+            const rollResult = document.getElementById('rollResult');
+            if (rollResult) {
+                rollResult.innerHTML = hasNonNumeric ? '' : `Total: ${total}`;
+            }
         };
 
         for (let i = 0; i < count; i++) {
@@ -745,5 +793,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } 
     
     updateCustomDicePreview(); // Initial preview update
+
+    // Update dice input placeholder
+    const diceInput = document.getElementById('diceInput');
+    diceInput.placeholder = 'e.g., 3d6, d20';
 }); 
 
