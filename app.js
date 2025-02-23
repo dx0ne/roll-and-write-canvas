@@ -69,6 +69,10 @@ document.addEventListener('DOMContentLoaded', () => {
             e.target.classList.add('selected');
             currentColor = e.target.dataset.color;
         });
+        //set current color to the color of the selected option
+        if(option.classList.contains('selected')) {
+            currentColor = option.dataset.color;
+        }
     });
 
     // Add tool selection
@@ -328,8 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
             marker.innerHTML = text;  // Set die text directly
         } else {
             marker.style.backgroundColor = color;
-            marker.style.left = `${x}px`;
-            marker.style.top = `${y}px`;
+            marker.style.left = `${x-20}px`;
+            marker.style.top = `${y-20}px`;
             
 
         }
@@ -424,14 +428,13 @@ document.addEventListener('DOMContentLoaded', () => {
         function rollThisDie(e) {
             // Check for Ctrl+Click to create marker
             if (e && e.ctrlKey) {
-                const rect = diceContainer.getBoundingClientRect();
-                const dieRect = die.getBoundingClientRect();
-                const x = dieRect.left - rect.left + (dieRect.width / 2);
-                const y = dieRect.top - rect.top + (dieRect.height / 2);
+                const rect = canvas.getBoundingClientRect();
+                const x = rect.width / 2;  // Center X
+                const y = rect.height / 2; // Center Y
                 createMarker(x, y, '#000000', 'die', die.innerHTML);
                 return;
             }
-
+    
             // Normal roll behavior
             die.classList.remove('rolled');
             const rollClass = Math.random() < 0.5 ? 'roll-left' : 'roll-right';
@@ -441,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const randomFace = faces[Math.floor(Math.random() * faces.length)];
                 die.innerHTML = randomFace;
             }, 50);
-
+    
             setTimeout(() => {
                 clearInterval(rollInterval);
                 const roll = faces[Math.floor(Math.random() * faces.length)];
@@ -458,6 +461,8 @@ document.addEventListener('DOMContentLoaded', () => {
         rollThisDie();
         return die;
     }
+
+
 
     // Add function to register new dice sets
     function registerDiceSet(name, faces) {
@@ -610,6 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     die.className = 'die rolled';
                     die.innerHTML = value;
                     diceContainer.appendChild(die);
+                    die.addEventListener('click', makeMarkerFromDice);
                 });
                 
                 // Clear total
@@ -636,9 +642,15 @@ document.addEventListener('DOMContentLoaded', () => {
             count = parseInt(match[1]) || 1;
             const typeOrSides = match[2].toLowerCase();
             
-            if (customDiceSets['d' + typeOrSides]) {
-                diceType = 'd' + typeOrSides;
-                sides = customDiceSets[diceType].length;
+            // Find any dice set that starts with this letter
+            const matchingDiceSet = Object.entries(customDiceSets).find(([name]) => 
+                name.startsWith('d' + typeOrSides) || 
+                (typeOrSides.length === 1 && name.charAt(1) === typeOrSides)
+            );
+            
+            if (matchingDiceSet) {
+                diceType = matchingDiceSet[0];
+                sides = matchingDiceSet[1].length;
             } else {
                 sides = parseInt(typeOrSides);
                 
@@ -676,6 +688,17 @@ document.addEventListener('DOMContentLoaded', () => {
             createDie(sides, diceContainer, updateTotal, diceType);
         }
     });
+
+    function makeMarkerFromDice(e) {
+        // Check for Ctrl+Click to create marker
+        if (e && e.ctrlKey) {
+            const rect = canvas.getBoundingClientRect();
+            const x = rect.width / 2;  // Center X
+            const y = rect.height / 2; // Center Y
+            createMarker(x, y, '#000000', 'die', e.target.closest('.die').innerHTML);
+            return;
+        }
+    }
 
     function createDiceContainer() {
         // Create or get diceContainer
@@ -816,7 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('mouseout', handleMouseUp);
 
 
-    registerDiceSet('Symbols', ['▲', '■', '●', '★']);  // Can be used as 3dSymbols
+    registerDiceSet('Colors', ['🔴', '🟠', '🟡', '🟢', '🔵', '🟣']);  // Can be used as 3dSymbols
     registerDiceSet('Thumbs', ['👍', '👎']);  // Can be used as 2dYesNo
     registerDiceSet('PaperRockScissors', ['✋', '✌️', '✊']);  // Can be used as dElements
     registerDiceSet('6', ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅']);  // Can be used as dElements
