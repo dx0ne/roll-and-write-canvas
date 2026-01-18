@@ -5,6 +5,7 @@ let originalImageData = null;  // Add this to store original image state
 let originalImage = null;  // Add this to store the Image object
 let rollHistory = [];
 const MAX_ROLL_HISTORY = 10;  // Maximum number of rolls to remember
+let diceContainer = null;  // Global reference to dice container
 
 
 // Create GraphemeSplitter instance at the top level
@@ -536,52 +537,18 @@ document.addEventListener('DOMContentLoaded', () => {
             dropdownContainer.id = 'customDiceDropdown';
             dropdownContainer.className = 'custom-dice-dropdown';
 
-            // Find or create the dice roller container
+            // Find the dice roller container (it should exist in HTML)
             let diceRoller = document.querySelector('.dice-roller');
-            if (!diceRoller) {
-                diceRoller = document.createElement('div');
-                diceRoller.className = 'dice-roller';
-                document.body.appendChild(diceRoller);
-            }
-
-            // Create input group if it doesn't exist
-            let inputGroup = document.querySelector('.dice-input-group');
-            if (!inputGroup) {
-                inputGroup = document.createElement('div');
-                inputGroup.className = 'dice-input-group';
-
-                // Create or get input field
-                let diceInput = document.getElementById('diceInput');
-                if (!diceInput) {
-                    diceInput = document.createElement('input');
-                    diceInput.id = 'diceInput';
-                    diceInput.type = 'text';
-                    diceInput.placeholder = 'e.g., 3d6, d20';
-                    diceInput.style.height = '32px';
-                    diceInput.style.boxSizing = 'border-box';
-                }
-                inputGroup.appendChild(diceInput);
-
-                // Create or get roll button
-                let rollButton = document.getElementById('rollButton');
-                if (!rollButton) {
-                    rollButton = document.createElement('button');
-                    rollButton.id = 'rollButton';
-                    rollButton.innerHTML = '<i class="fas fa-dice"></i>';
-                }
-                inputGroup.appendChild(rollButton);
-
+            if (diceRoller) {
                 // Create custom dice button
                 const customDiceBtn = document.createElement('button');
                 customDiceBtn.id = 'customDiceBtn';
                 customDiceBtn.className = 'tool-option';
                 customDiceBtn.innerHTML = '<i class="fas fa-list"></i>';
                 customDiceBtn.title = 'Custom Dice Sets';
-                inputGroup.appendChild(customDiceBtn);
 
-                // Add input group to dice roller
-                diceRoller.innerHTML = '';
-                diceRoller.appendChild(inputGroup);
+                // Append button and dropdown to existing dice roller
+                diceRoller.appendChild(customDiceBtn);
                 diceRoller.appendChild(dropdownContainer);
 
                 // Set up click handlers
@@ -853,7 +820,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function createDiceContainer() {
         // Create or get diceContainer
-        let diceContainer = document.getElementById('diceContainer');
+        diceContainer = document.getElementById('diceContainer');
         if (!diceContainer) {
             diceContainer = document.createElement('div');
             diceContainer.id = 'diceContainer';
@@ -868,7 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 diceRoller.insertBefore(diceContainer, resultsContainer);
             }
         }
-        
+
         // Clear existing dice
         diceContainer.innerHTML = '';
     }
