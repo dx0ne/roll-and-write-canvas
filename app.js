@@ -44,6 +44,10 @@ const resizeState = {
     showHandles: false  // Only show handles when hovering over image
 };
 
+// Markers array - stores markers/counters with world coordinates
+const markersData = [];
+let nextMarkerId = 0;
+
 // Create GraphemeSplitter instance at the top level
 const gs = new GraphemeSplitter();
 
@@ -129,7 +133,37 @@ document.addEventListener('DOMContentLoaded', () => {
         // Draw resize handles (in canvas space, not transformed)
         drawResizeHandles();
 
-        // Note: Marker positions will be updated in Phase 5
+        // Update marker positions based on viewport
+        updateMarkerPositions();
+    }
+
+    function updateMarkerPositions() {
+        markersData.forEach(markerData => {
+            const element = document.getElementById(markerData.id);
+            if (!element) return;
+
+            // Convert world coordinates to canvas coordinates
+            const canvasPos = worldToCanvas(markerData.worldX, markerData.worldY);
+
+            // Update DOM position (markers are positioned by their top-left)
+            // For die markers, worldX/Y is already the top-left
+            // For regular markers, worldX/Y is the center, so offset by half size
+            if (markerData.type === 'die') {
+                element.style.left = `${canvasPos.x}px`;
+                element.style.top = `${canvasPos.y}px`;
+            } else if (markerData.type === 'counter') {
+                element.style.left = `${canvasPos.x}px`;
+                element.style.top = `${canvasPos.y}px`;
+            } else {
+                // Regular marker - center it
+                const displaySize = markerData.size * viewport.scale;
+                element.style.left = `${canvasPos.x - displaySize / 2}px`;
+                element.style.top = `${canvasPos.y - displaySize / 2}px`;
+                element.style.width = `${displaySize}px`;
+                element.style.height = `${displaySize}px`;
+                element.style.fontSize = `${displaySize * 0.6}px`;
+            }
+        });
     }
 
     function drawResizeHandles() {
@@ -876,28 +910,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Marker Functions
     function createMarker(x, y, color, type = null, text = '') {
+        // Create marker data with world coordinates
+        const markerId = `marker-${nextMarkerId++}`;
+        const markerData = {
+            id: markerId,
+            worldX: x,  // Store in world coordinates
+            worldY: y,
+            color: color,
+            type: type || 'marker',
+            text: text,
+            size: 40  // Base size in world space
+        };
+        markersData.push(markerData);
+
+        // Create DOM element
         const marker = document.createElement('div');
-        marker.className = 'marker';
-        
+        marker.id = markerId;
+        marker.className = type === 'die' ? 'die rolled' : 'marker';
+        marker.style.position = 'absolute';
+        marker.style.cursor = 'move';
+        marker.style.pointerEvents = 'auto';
+        marker.style.userSelect = 'none';
+
         if (type === 'die') {
-            marker.className = 'die rolled';  // Use die class instead of marker
-            marker.style.position = 'absolute';  // Keep positioning from marker
-            marker.style.cursor = 'move';  // Keep cursor style
-            marker.style.pointerEvents = 'auto';
-            marker.style.userSelect = 'none';
-            marker.style.left = `${x}px`;
-            marker.style.top = `${y}px`;
-            marker.innerHTML = text;  // Set die text directly
+            marker.innerHTML = text;
         } else {
             marker.style.backgroundColor = color;
-            marker.style.left = `${x-20}px`;
-            marker.style.top = `${y-20}px`;
-            
-
+            marker.style.width = '40px';
+            marker.style.height = '40px';
         }
 
         const handleMarkerMouseDown = (e) => {
             if (e.ctrlKey) {
+                // Remove marker
+                const index = markersData.findIndex(m => m.id === markerId);
+                if (index !== -1) markersData.splice(index, 1);
                 marker.remove();
                 e.preventDefault();
                 return;
@@ -905,22 +952,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.shiftKey) {
                 // Initialize resize state
                 selectedMarker = marker;
-                const startX = e.clientX;
-                const initialSize = parseInt(marker.style.width) || 40;
-                const initialLeft = parseInt(marker.style.left);
-                const initialTop = parseInt(marker.style.top);
+                const startSize = markerData.size;
 
                 const handleResize = (moveEvent) => {
-                    const deltaX = moveEvent.clientX - startX;
-                    // Change size based on mouse movement (adjust sensitivity as needed)
-                    const newSize = Math.max(20, Math.min(100, initialSize + deltaX));
-                    const sizeDiff = newSize - initialSize;
-                    
-                    // Adjust position to maintain center point
-                    marker.style.left = `${initialLeft - sizeDiff/2}px`;
-                    marker.style.top = `${initialTop - sizeDiff/2}px`;
-                    marker.style.width = `${newSize}px`;
-                    marker.style.height = `${newSize}px`;
+                    const deltaX = moveEvent.clientX - e.clientX;
+                    // Change size in world space
+                    const newSize = Math.max(20, Math.min(100, startSize + deltaX / viewport.scale));
+                    markerData.size = newSize;
+                    requestRender();
                 };
 
                 const stopResize = () => {
@@ -942,27 +981,37 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         marker.addEventListener('mousedown', handleMarkerMouseDown);
-
         marker.addEventListener('contextmenu', (e) => e.preventDefault());
         markersLayer.appendChild(marker);
+
+        // Initial position update
+        requestRender();
     }
 
     document.addEventListener('mousemove', (e) => {
-        if (selectedMarker) {
-            const rect = markersLayer.getBoundingClientRect();
-            const x = e.clientX - rect.left - markerOffsetX;
-            const y = e.clientY - rect.top - markerOffsetY;
-            
-            const maxX = markersLayer.clientWidth - 40;
-            const maxY = markersLayer.clientHeight - 40;
-            
-            selectedMarker.style.left = `${Math.max(0, Math.min(maxX, x))}px`;
-            selectedMarker.style.top = `${Math.max(0, Math.min(maxY, y))}px`;
+        if (selectedMarker && !resizeState.isResizing) {
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = e.clientX - rect.left;
+            const canvasY = e.clientY - rect.top;
+
+            // Convert to world coordinates
+            const world = canvasToWorld(canvasX, canvasY);
+
+            // Find marker data
+            const markerData = markersData.find(m => m.id === selectedMarker.id);
+            if (markerData) {
+                // Update world position
+                markerData.worldX = world.x - markerOffsetX / viewport.scale;
+                markerData.worldY = world.y - markerOffsetY / viewport.scale;
+                requestRender();
+            }
         }
     });
 
     document.addEventListener('mouseup', () => {
-        selectedMarker = null;
+        if (selectedMarker && !resizeState.isResizing) {
+            selectedMarker = null;
+        }
     });
 
     // Add this before the roll button event listener
@@ -1518,74 +1567,98 @@ document.addEventListener('DOMContentLoaded', () => {
     diceInput.placeholder = 'e.g., 3d6, d20';
 
     function createCounter(x, y) {
-        console.log("createCounter", x, y);
+        // Create counter data with world coordinates
+        const counterId = `counter-${nextMarkerId++}`;
+        const counterData = {
+            id: counterId,
+            worldX: x,
+            worldY: y,
+            color: currentColor,
+            type: 'counter',
+            name: 'Counter',
+            value: 0,
+            size: 100  // Base size
+        };
+        markersData.push(counterData);
+
+        // Create DOM element
         const counter = document.createElement('div');
+        counter.id = counterId;
         counter.className = 'counter-container';
         counter.style.position = 'absolute';
-        counter.style.left = `${x}px`;
-        counter.style.top = `${y}px`;
         counter.style.backgroundColor = currentColor;
-    
+
         // Create name label (editable)
         const nameLabel = document.createElement('div');
         nameLabel.className = 'counter-name';
         nameLabel.contentEditable = true;
         nameLabel.textContent = 'Counter';
+        nameLabel.addEventListener('input', (e) => {
+            counterData.name = e.target.textContent;
+        });
         counter.appendChild(nameLabel);
-    
+
         // Create counter controls
         const controls = document.createElement('div');
         controls.className = 'counter-controls';
-    
+
         const minusBtn = document.createElement('button');
         minusBtn.textContent = '-';
         minusBtn.className = 'counter-btn';
-    
+
         const valueDisplay = document.createElement('span');
         valueDisplay.className = 'counter-value';
         valueDisplay.textContent = '0';
         valueDisplay.contentEditable = true;
+        valueDisplay.addEventListener('input', (e) => {
+            counterData.value = parseInt(e.target.textContent) || 0;
+        });
 
-    
         const plusBtn = document.createElement('button');
         plusBtn.textContent = '+';
         plusBtn.className = 'counter-btn';
-    
+
         controls.appendChild(minusBtn);
         controls.appendChild(valueDisplay);
         controls.appendChild(plusBtn);
         counter.appendChild(controls);
-    
+
         // Add counter functionality
         minusBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const tvalue = parseInt(valueDisplay.textContent)-1;
-            valueDisplay.textContent = tvalue;
+            counterData.value--;
+            valueDisplay.textContent = counterData.value;
         });
-    
+
         plusBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const tvalue = parseInt(valueDisplay.textContent)+1;
-            valueDisplay.textContent = tvalue;
+            counterData.value++;
+            valueDisplay.textContent = counterData.value;
         });
-    
+
         // Add dragging functionality
         counter.addEventListener('mousedown', (e) => {
             if (e.target === nameLabel || e.target.className === 'counter-btn' || e.target.className === 'counter-value') {
                 return;
             }
             if (e.ctrlKey) {
+                // Remove counter
+                const index = markersData.findIndex(m => m.id === counterId);
+                if (index !== -1) markersData.splice(index, 1);
                 counter.remove();
                 return;
             }
-           
+
             selectedMarker = counter;
             const rect = counter.getBoundingClientRect();
             markerOffsetX = e.clientX - rect.left;
             markerOffsetY = e.clientY - rect.top;
         });
-    
+
         markersLayer.appendChild(counter);
+
+        // Initial position update
+        requestRender();
 
         return counter;
     }
