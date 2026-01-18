@@ -1584,18 +1584,119 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('saveButton').addEventListener('click', saveState);
     document.getElementById('loadButton').addEventListener('click', loadState);
 
+    // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-        if (e.ctrlKey) {
+        // Ctrl/Cmd shortcuts
+        if (e.ctrlKey || e.metaKey) {
             if (e.key === 'z') {
                 // Undo
+                e.preventDefault();
                 document.getElementById('undoButton').click();
             } else if (e.key === 's') {
                 // Save
                 e.preventDefault();
                 saveState();
+            } else if (e.key === 'o') {
+                // Load
+                e.preventDefault();
+                loadState();
+            } else if (e.key === '0') {
+                // Reset zoom
+                e.preventDefault();
+                resetView();
+            }
+        }
+        // Tool shortcuts (without modifiers)
+        else if (!e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+            // Only if not typing in an input
+            if (e.target.tagName !== 'INPUT' && e.target.contentEditable !== 'true') {
+                switch(e.key) {
+                    case 'v':
+                    case 'Escape':
+                        // Select tool
+                        currentTool = 'select';
+                        updateToolSelection('select');
+                        break;
+                    case 'p':
+                        // Pen tool
+                        currentTool = 'pen';
+                        updateToolSelection('pen');
+                        break;
+                    case 'e':
+                        // Eraser tool
+                        currentTool = 'eraser';
+                        updateToolSelection('eraser');
+                        break;
+                    case 'l':
+                        // Line tool
+                        currentTool = 'line';
+                        updateToolSelection('line');
+                        break;
+                    case 'r':
+                        // Rectangle tool
+                        currentTool = 'rectangle';
+                        updateToolSelection('rectangle');
+                        break;
+                    case 'f':
+                        // Fit to screen
+                        fitImageToScreen();
+                        break;
+                    case '+':
+                    case '=':
+                        // Zoom in
+                        zoomAtCenter(1.2);
+                        break;
+                    case '-':
+                    case '_':
+                        // Zoom out
+                        zoomAtCenter(0.8);
+                        break;
+                }
             }
         }
     });
+
+    function updateToolSelection(toolName) {
+        document.querySelectorAll('.tool-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        const toolOption = document.querySelector(`.tool-option[data-tool="${toolName}"]`);
+        if (toolOption) {
+            toolOption.classList.add('selected');
+        }
+    }
+
+    function resetView() {
+        if (imageState.img) {
+            viewport.scale = 1;
+            viewport.x = 0;
+            viewport.y = 0;
+            requestRender();
+        }
+    }
+
+    function fitImageToScreen() {
+        if (imageState.img) {
+            const scaleX = canvas.width / imageState.displayWidth;
+            const scaleY = canvas.height / imageState.displayHeight;
+            viewport.scale = Math.min(scaleX, scaleY) * 0.9;
+            viewport.x = (canvas.width - imageState.displayWidth * viewport.scale) / 2;
+            viewport.y = (canvas.height - imageState.displayHeight * viewport.scale) / 2;
+            requestRender();
+        }
+    }
+
+    function zoomAtCenter(factor) {
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const worldBefore = canvasToWorld(centerX, centerY);
+        viewport.scale *= factor;
+        viewport.scale = Math.max(0.1, Math.min(10, viewport.scale));
+        const worldAfter = canvasToWorld(centerX, centerY);
+        viewport.x += (worldAfter.x - worldBefore.x) * viewport.scale;
+        viewport.y += (worldAfter.y - worldBefore.y) * viewport.scale;
+        requestRender();
+    }
 
     // Make sure this runs when the page loads
     initializeCanvas();
