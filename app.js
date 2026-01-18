@@ -974,9 +974,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             selectedMarker = marker;
-            const rect = marker.getBoundingClientRect();
-            markerOffsetX = e.clientX - rect.left;
-            markerOffsetY = e.clientY - rect.top;
+            // Store offset in world space (where we clicked relative to marker center)
+            const canvasRect = canvas.getBoundingClientRect();
+            const canvasX = e.clientX - canvasRect.left;
+            const canvasY = e.clientY - canvasRect.top;
+            const world = canvasToWorld(canvasX, canvasY);
+            markerOffsetX = world.x - markerData.worldX;
+            markerOffsetY = world.y - markerData.worldY;
             e.stopPropagation();
         };
 
@@ -1000,9 +1004,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Find marker data
             const markerData = markersData.find(m => m.id === selectedMarker.id);
             if (markerData) {
-                // Update world position
-                markerData.worldX = world.x - markerOffsetX / viewport.scale;
-                markerData.worldY = world.y - markerOffsetY / viewport.scale;
+                // Update world position (offset already in world space)
+                markerData.worldX = world.x - markerOffsetX;
+                markerData.worldY = world.y - markerOffsetY;
                 requestRender();
             }
         }
@@ -1650,9 +1654,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             selectedMarker = counter;
-            const rect = counter.getBoundingClientRect();
-            markerOffsetX = e.clientX - rect.left;
-            markerOffsetY = e.clientY - rect.top;
+            // Store offset in world space
+            const canvasRect = canvas.getBoundingClientRect();
+            const canvasX = e.clientX - canvasRect.left;
+            const canvasY = e.clientY - canvasRect.top;
+            const world = canvasToWorld(canvasX, canvasY);
+            markerOffsetX = world.x - counterData.worldX;
+            markerOffsetY = world.y - counterData.worldY;
         });
 
         markersLayer.appendChild(counter);
