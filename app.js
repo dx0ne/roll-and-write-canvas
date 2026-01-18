@@ -1419,36 +1419,44 @@ document.addEventListener('DOMContentLoaded', () => {
     function saveState() {
         try {
             const state = {
-                canvasData: canvas.toDataURL(),
+                // Viewport state
+                viewport: {
+                    x: viewport.x,
+                    y: viewport.y,
+                    scale: viewport.scale
+                },
+                // Image state
+                imageState: {
+                    imageData: imageState.img ? imageState.img.src : null,
+                    x: imageState.x,
+                    y: imageState.y,
+                    width: imageState.width,
+                    height: imageState.height,
+                    displayWidth: imageState.displayWidth,
+                    displayHeight: imageState.displayHeight,
+                    // Save offscreen canvas (drawings)
+                    offscreenCanvasData: imageState.offscreenCanvas ? imageState.offscreenCanvas.toDataURL() : null
+                },
+                // Markers and counters
+                markers: markersData.map(m => ({
+                    id: m.id,
+                    worldX: m.worldX,
+                    worldY: m.worldY,
+                    color: m.color,
+                    type: m.type,
+                    text: m.text,
+                    size: m.size,
+                    name: m.name,
+                    value: m.value
+                })),
+                // Canvas dimensions (for window resize compatibility)
                 canvasWidth: canvas.width,
-                canvasHeight: canvas.height,
-                markers: Array.from(markersLayer.children).map(marker => {
-                    if (marker.classList.contains('counter-container')) {
-                        return {
-                            x: parseInt(marker.style.left),
-                            y: parseInt(marker.style.top),
-                            type: 'counter',
-                            name: marker.querySelector('.counter-name').textContent,
-                            value: marker.querySelector('.counter-value').textContent,
-                            color: marker.style.backgroundColor,
-                        };
-                    }
-                    const isdie = marker.classList.contains('die');
-                    return {
-                        x: parseInt(marker.style.left),
-                        y: parseInt(marker.style.top),
-                        width: marker.style.width || '40px',
-                        height: marker.style.height || '40px',
-                        type: isdie ? 'die' : 'marker',
-                        // Store either background color or die text depending on type
-                        value: isdie ? marker.innerHTML : marker.style.backgroundColor,
-                        color: marker.style.backgroundColor,
-                    };
-                })
+                canvasHeight: canvas.height
             };
             localStorage.setItem('boardState', JSON.stringify(state));
             showNotification('Board state saved successfully!');
         } catch (error) {
+            console.error('Save error:', error);
             showNotification('Failed to save board state', 'error');
         }
     }
@@ -1462,48 +1470,112 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const state = JSON.parse(saved);
-            
-            // Set canvas dimensions
-            canvas.width = state.canvasWidth;
-            canvas.height = state.canvasHeight;
-            markersLayer.style.width = state.canvasWidth + 'px';
-            markersLayer.style.height = state.canvasHeight + 'px';
-            
-            // Load canvas
-            const img = new Image();
-            img.onload = () => {
-                ctx.drawImage(img, 0, 0);
-                originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                drawHistory = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
-                showNotification('Board state loaded successfully!');
-            };
-            img.onerror = () => {
-                showNotification('Failed to load board image', 'error');
-            };
-            img.src = state.canvasData;
-            console.log("state.markers", state.markers);
-            // Load markers
+
+            // Clear existing state
             markersLayer.innerHTML = '';
-            state.markers.forEach(m => {
-                console.log("m", m);    
-                if (m.type === 'counter') {
-                    
-                    let counter = createCounter(m.x, m.y);
-                    counter.querySelector('.counter-name').textContent = m.name;
-                    counter.querySelector('.counter-value').textContent = m.value;
-                    counter.style.backgroundColor = m.color;
-                } else if (m.type === 'die') {
-                    createMarker(m.x, m.y, null, 'die', m.value);
-                } else {
-                    createMarker(m.x, m.y, m.color);
+            markersData.length = 0;
+            nextMarkerId = 0;
+
+            // Restore viewport
+            if (state.viewport) {
+                viewport.x = state.viewport.x;
+                viewport.y = state.viewport.y;
+                viewport.scale = state.viewport.scale;
+            }
+
+            // Restore image state
+            if (state.imageState && state.imageState.imageData) {
+                const img = new Image();
+                img.onload = () => {
+                    // Restore image properties
+                    imageState.img = img;
+                    imageState.x = state.imageState.x;
+                    imageState.y = state.imageState.y;
+                    imageState.width = state.imageState.width;
+                    imageState.height = state.imageState.height;
+                    imageState.displayWidth = state.imageState.displayWidth;
+                    imageState.displayHeight = state.imageState.displayHeight;
+
+                    // Legacy support
+                    originalImage = img;
+                    originalWidth = state.imageState.width;
+                    originalHeight = state.imageState.height;
+
+                    // Restore offscreen canvas (drawings)
+                    if (state.imageState.offscreenCanvasData) {
+                        const offscreenImg = new Image();
+                        offscreenImg.onload = () => {
+                            imageState.offscreenCanvas = document.createElement('canvas');
+                            imageState.offscreenCanvas.width = imageState.width;
+                            imageState.offscreenCanvas.height = imageState.height;
+                            imageState.offscreenCtx = imageState.offscreenCanvas.getContext('2d');
+                            imageState.offscreenCtx.willReadFrequently = true;
+                            imageState.offscreenCtx.lineCap = 'round';
+                            imageState.offscreenCtx.lineJoin = 'round';
+                            imageState.offscreenCtx.lineWidth = 2;
+                            imageState.offscreenCtx.drawImage(offscreenImg, 0, 0);
+
+                            // Restore markers after image is loaded
+                            restoreMarkers();
+
+                            // Render everything
+                            requestRender();
+                            showNotification('Board state loaded successfully!');
+                        };
+                        offscreenImg.src = state.imageState.offscreenCanvasData;
+                    } else {
+                        // No drawings, just create empty offscreen canvas
+                        imageState.offscreenCanvas = document.createElement('canvas');
+                        imageState.offscreenCanvas.width = imageState.width;
+                        imageState.offscreenCanvas.height = imageState.height;
+                        imageState.offscreenCtx = imageState.offscreenCanvas.getContext('2d');
+                        imageState.offscreenCtx.willReadFrequently = true;
+                        imageState.offscreenCtx.lineCap = 'round';
+                        imageState.offscreenCtx.lineJoin = 'round';
+                        imageState.offscreenCtx.lineWidth = 2;
+
+                        restoreMarkers();
+                        requestRender();
+                        showNotification('Board state loaded successfully!');
+                    }
+                };
+                img.onerror = () => {
+                    showNotification('Failed to load board image', 'error');
+                };
+                img.src = state.imageState.imageData;
+            }
+
+            function restoreMarkers() {
+                // Restore markers
+                if (state.markers) {
+                    state.markers.forEach(m => {
+                        if (m.type === 'counter') {
+                            const counter = createCounter(m.worldX, m.worldY);
+                            const counterData = markersData.find(md => md.id === counter.id);
+                            if (counterData) {
+                                counterData.name = m.name || 'Counter';
+                                counterData.value = parseInt(m.value) || 0;
+                                counterData.color = m.color;
+                                counterData.size = m.size || 100;
+                            }
+                            counter.querySelector('.counter-name').textContent = m.name || 'Counter';
+                            counter.querySelector('.counter-value').textContent = m.value || '0';
+                            counter.style.backgroundColor = m.color;
+                        } else if (m.type === 'die') {
+                            createMarker(m.worldX, m.worldY, m.color, 'die', m.text);
+                            const markerData = markersData[markersData.length - 1];
+                            if (markerData) markerData.size = m.size || 40;
+                        } else {
+                            createMarker(m.worldX, m.worldY, m.color);
+                            const markerData = markersData[markersData.length - 1];
+                            if (markerData) markerData.size = m.size || 40;
+                        }
+                    });
                 }
-                
-                // Update size if different from default
-                const marker = markersLayer.lastElementChild;
-                marker.style.width = m.width;
-                marker.style.height = m.height;
-            });
+            }
+
         } catch (error) {
+            console.error('Load error:', error);
             showNotification('Failed to load board state', 'error');
         }
     }
