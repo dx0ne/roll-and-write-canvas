@@ -87,23 +87,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add this after the image upload handler
     window.addEventListener('resize', () => {
         if (originalImage) {
+            // Save current canvas content before resize
+            const currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const oldWidth = canvas.width;
+            const oldHeight = canvas.height;
+
             const controlsHeight = document.querySelector('.controls').offsetHeight;
             canvas.width = window.innerWidth - 20;
             canvas.height = window.innerHeight - controlsHeight - 20;
             markersLayer.style.width = `${canvas.width}px`;
             markersLayer.style.height = `${canvas.height}px`;
-            
+
+            // Update preview canvas size
+            const previewCanvas = document.getElementById('previewLayer');
+            if (previewCanvas) {
+                previewCanvas.width = canvas.width;
+                previewCanvas.height = canvas.height;
+            }
+
             // Recalculate scale and position
             const scale = calculateFitScale(originalWidth, originalHeight);
             const scaledWidth = originalWidth * scale;
             const scaledHeight = originalHeight * scale;
             const x = (canvas.width - scaledWidth) / 2;
             const y = (canvas.height - scaledHeight) / 2;
-            
+
             // Redraw image
             ctx.drawImage(originalImage, x, y, scaledWidth, scaledHeight);
             originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            drawHistory = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
+
+            // Restore drawings on top of the image
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = oldWidth;
+            tempCanvas.height = oldHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.putImageData(currentImageData, 0, 0);
+            ctx.drawImage(tempCanvas, 0, 0);
+
+            // Update drawHistory with new state
+            drawHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
         }
     });
 
@@ -207,25 +229,30 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.lineWidth = 2;
             ctx.stroke();
             return;
-        } else if (currentTool === 'eraser' && originalImageData) {
+        } else if (currentTool === 'eraser') {
             // Create a temporary canvas for the eraser operation
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = canvas.width;
             tempCanvas.height = canvas.height;
             const tempCtx = tempCanvas.getContext('2d');
-            
+
             // Copy current canvas state
             tempCtx.putImageData(ctx.getImageData(0, 0, canvas.width, canvas.height), 0, 0);
-            
+
             // Set up eraser
             tempCtx.globalCompositeOperation = 'destination-out';
             tempCtx.beginPath();
             tempCtx.arc(currentX, currentY, 10, 0, Math.PI * 2);
             tempCtx.fill();
-            
-            // Draw original image first
-            ctx.putImageData(originalImageData, 0, 0);
-            
+
+            // Draw original image or white background first
+            if (originalImageData) {
+                ctx.putImageData(originalImageData, 0, 0);
+            } else {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
             // Then draw current state with erased portion
             ctx.globalCompositeOperation = 'source-atop';
             ctx.drawImage(tempCanvas, 0, 0);
@@ -303,8 +330,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Modify drawing logic
-    let startPos = null;
-
     canvas.addEventListener('mousedown', (e) => {
         const pos = getMousePos(e);
         if (e.ctrlKey) {
@@ -317,10 +342,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (currentTool === 'counter') {
             createCounter(pos.x, pos.y);
-            currentTool = 'pen';
-            document.querySelector('.tool-option.selected')?.classList.remove('selected');
-            //find the tool-option with data-tool="counter" and add the selected class
-            document.querySelector('.tool-option[data-tool="pen"]')?.classList.add('selected'); 
             return;
         }
         handleMouseDown(e);
@@ -330,20 +351,26 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.moveTo(pos.x, pos.y);
             ctx.strokeStyle = currentColor;
             ctx.lineWidth = 2;
-        } else if (currentTool === 'eraser' && originalImageData) {
+        } else if (currentTool === 'eraser') {
             // Initial eraser action
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = canvas.width;
             tempCanvas.height = canvas.height;
             const tempCtx = tempCanvas.getContext('2d');
-            
+
             tempCtx.putImageData(ctx.getImageData(0, 0, canvas.width, canvas.height), 0, 0);
             tempCtx.globalCompositeOperation = 'destination-out';
             tempCtx.beginPath();
             tempCtx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
             tempCtx.fill();
-            
-            ctx.putImageData(originalImageData, 0, 0);
+
+            // Draw original image or white background first
+            if (originalImageData) {
+                ctx.putImageData(originalImageData, 0, 0);
+            } else {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
             ctx.globalCompositeOperation = 'source-atop';
             ctx.drawImage(tempCanvas, 0, 0);
             ctx.globalCompositeOperation = 'source-over';
