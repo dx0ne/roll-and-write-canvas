@@ -1,12 +1,34 @@
 let canvas, ctx, previewCtx;
 let currentColor = '#000000';
 let currentTool = 'pen';
-let originalImageData = null;  // Add this to store original image state
-let originalImage = null;  // Add this to store the Image object
+let originalImageData = null;  // Deprecated - will be replaced by imageState
+let originalImage = null;  // Deprecated - will be replaced by imageState
 let rollHistory = [];
 const MAX_ROLL_HISTORY = 10;  // Maximum number of rolls to remember
 let diceContainer = null;  // Global reference to dice container
 
+// Viewport state for infinite canvas
+const viewport = {
+    x: 0,              // Pan offset X (pixels)
+    y: 0,              // Pan offset Y (pixels)
+    scale: 1,          // Zoom level
+    isDragging: false,
+    dragStartX: 0,
+    dragStartY: 0
+};
+
+// Image state for world-space positioning
+const imageState = {
+    img: null,           // Image element
+    x: 0,                // Position in world space
+    y: 0,
+    width: 0,            // Original dimensions
+    height: 0,
+    displayWidth: 0,     // Current display size (for resizing)
+    displayHeight: 0,
+    offscreenCanvas: null,     // Canvas for storing drawings
+    offscreenCtx: null         // Context for offscreen canvas
+};
 
 // Create GraphemeSplitter instance at the top level
 const gs = new GraphemeSplitter();
@@ -27,7 +49,154 @@ document.addEventListener('DOMContentLoaded', () => {
     let startX, startY;
 
     const addCustomFaceButton = document.getElementById('addCustomFaceButton');
-    addCustomFaceButton.addEventListener('click', addCustomFace);   
+    addCustomFaceButton.addEventListener('click', addCustomFace);
+
+    // Coordinate transformation functions
+    function canvasToWorld(canvasX, canvasY) {
+        return {
+            x: (canvasX - viewport.x) / viewport.scale,
+            y: (canvasY - viewport.y) / viewport.scale
+        };
+    }
+
+    function worldToCanvas(worldX, worldY) {
+        return {
+            x: worldX * viewport.scale + viewport.x,
+            y: worldY * viewport.scale + viewport.y
+        };
+    }
+
+    function isInsideImage(worldX, worldY) {
+        return imageState.img &&
+               worldX >= imageState.x &&
+               worldX <= imageState.x + imageState.displayWidth &&
+               worldY >= imageState.y &&
+               worldY <= imageState.y + imageState.displayHeight;
+    }
+
+    // Main render function for infinite canvas
+    let renderRequested = false;
+    function render() {
+        // Clear entire canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Save context state
+        ctx.save();
+
+        // Apply viewport transform (pan and zoom)
+        ctx.translate(viewport.x, viewport.y);
+        ctx.scale(viewport.scale, viewport.scale);
+
+        // Draw image at world coordinates
+        if (imageState.img) {
+            ctx.drawImage(
+                imageState.img,
+                imageState.x,
+                imageState.y,
+                imageState.displayWidth,
+                imageState.displayHeight
+            );
+
+            // Draw offscreen canvas (drawings) on top of image
+            if (imageState.offscreenCanvas) {
+                ctx.drawImage(
+                    imageState.offscreenCanvas,
+                    imageState.x,
+                    imageState.y,
+                    imageState.displayWidth,
+                    imageState.displayHeight
+                );
+            }
+        }
+
+        // Restore context state
+        ctx.restore();
+
+        // Note: Marker positions will be updated in Phase 5
+    }
+
+    function requestRender() {
+        if (!renderRequested) {
+            renderRequested = true;
+            requestAnimationFrame(() => {
+                render();
+                renderRequested = false;
+            });
+        }
+    }
+
+    // Pan functionality (middle mouse button or space + left mouse)
+    let spacebarPressed = false;
+
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && !e.repeat) {
+            spacebarPressed = true;
+            canvas.style.cursor = 'grab';
+        }
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if (e.code === 'Space') {
+            spacebarPressed = false;
+            if (!viewport.isDragging) {
+                canvas.style.cursor = 'default';
+            }
+        }
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+        // Pan with middle mouse or space + left mouse
+        if (e.button === 1 || (e.button === 0 && spacebarPressed)) {
+            e.preventDefault();
+            viewport.isDragging = true;
+            viewport.dragStartX = e.clientX - viewport.x;
+            viewport.dragStartY = e.clientY - viewport.y;
+            canvas.style.cursor = 'grabbing';
+        }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (viewport.isDragging) {
+            viewport.x = e.clientX - viewport.dragStartX;
+            viewport.y = e.clientY - viewport.dragStartY;
+            requestRender();
+        }
+    });
+
+    document.addEventListener('mouseup', (e) => {
+        if (viewport.isDragging && (e.button === 1 || e.button === 0)) {
+            viewport.isDragging = false;
+            canvas.style.cursor = spacebarPressed ? 'grab' : 'default';
+        }
+    });
+
+    // Zoom functionality (mouse wheel)
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // World coordinates of mouse before zoom
+        const worldBefore = canvasToWorld(mouseX, mouseY);
+
+        // Update scale
+        const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+        const newScale = viewport.scale * zoomFactor;
+
+        // Clamp zoom between 0.1x and 10x
+        viewport.scale = Math.max(0.1, Math.min(10, newScale));
+
+        // World coordinates of mouse after zoom (would change without adjustment)
+        const worldAfter = canvasToWorld(mouseX, mouseY);
+
+        // Adjust viewport to keep mouse position fixed
+        viewport.x += (worldAfter.x - worldBefore.x) * viewport.scale;
+        viewport.y += (worldAfter.y - worldBefore.y) * viewport.scale;
+
+        requestRender();
+    }, { passive: false });
 
     function calculateFitScale(imgWidth, imgHeight) {
         // Account for any padding/margins in addition to controls height
@@ -51,32 +220,53 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = () => {
+                    // Store image in new state structure
+                    imageState.img = img;
+                    imageState.width = img.width;
+                    imageState.height = img.height;
+                    imageState.displayWidth = img.width;   // Start at original size
+                    imageState.displayHeight = img.height;
+
+                    // Keep legacy variables for now (to avoid breaking existing code)
                     originalImage = img;
                     originalWidth = img.width;
                     originalHeight = img.height;
-                    
-                    // Account for margins/padding in canvas dimensions
+
+                    // Create offscreen canvas for drawings (at image resolution)
+                    imageState.offscreenCanvas = document.createElement('canvas');
+                    imageState.offscreenCanvas.width = img.width;
+                    imageState.offscreenCanvas.height = img.height;
+                    imageState.offscreenCtx = imageState.offscreenCanvas.getContext('2d');
+                    imageState.offscreenCtx.willReadFrequently = true;
+                    imageState.offscreenCtx.lineCap = 'round';
+                    imageState.offscreenCtx.lineJoin = 'round';
+                    imageState.offscreenCtx.lineWidth = 2;
+
+                    // Position image at world origin (0, 0)
+                    imageState.x = 0;
+                    imageState.y = 0;
+
+                    // Calculate initial viewport to center and fit image
                     const controlsHeight = document.querySelector('.controls').offsetHeight;
                     canvas.width = window.innerWidth - 20;
                     canvas.height = window.innerHeight - controlsHeight - 20;
-                    
-                    // Apply the same dimensions to markers layer
                     markersLayer.style.width = `${canvas.width}px`;
                     markersLayer.style.height = `${canvas.height}px`;
-                    
-                    // Calculate scale to fill screen
-                    const scale = calculateFitScale(originalWidth, originalHeight);
-                    
-                    // Calculate centered position for the scaled image
-                    const scaledWidth = originalWidth * scale;
-                    const scaledHeight = originalHeight * scale;
-                    const x = (canvas.width - scaledWidth) / 2;
-                    const y = (canvas.height - scaledHeight) / 2;
-                    
-                    // Draw image centered and scaled
-                    ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
-                    originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    drawHistory = [ctx.getImageData(0, 0, canvas.width, canvas.height)];
+
+                    // Set initial zoom to fit image on screen
+                    const scaleX = canvas.width / img.width;
+                    const scaleY = canvas.height / img.height;
+                    viewport.scale = Math.min(scaleX, scaleY) * 0.9; // 90% to add padding
+
+                    // Center image in viewport
+                    viewport.x = (canvas.width - img.width * viewport.scale) / 2;
+                    viewport.y = (canvas.height - img.height * viewport.scale) / 2;
+
+                    // Clear draw history
+                    drawHistory = [];
+
+                    // Initial render
+                    render();
                 };
                 img.src = event.target.result;
             };
@@ -85,47 +275,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Add this after the image upload handler
+    // Simplified window resize handler for infinite canvas
     window.addEventListener('resize', () => {
-        if (originalImage) {
-            // Save current canvas content before resize
-            const currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const oldWidth = canvas.width;
-            const oldHeight = canvas.height;
+        // Update canvas size to fill window
+        const controlsHeight = document.querySelector('.controls').offsetHeight;
+        canvas.width = window.innerWidth - 20;
+        canvas.height = window.innerHeight - controlsHeight - 20;
 
-            const controlsHeight = document.querySelector('.controls').offsetHeight;
-            canvas.width = window.innerWidth - 20;
-            canvas.height = window.innerHeight - controlsHeight - 20;
-            markersLayer.style.width = `${canvas.width}px`;
-            markersLayer.style.height = `${canvas.height}px`;
+        // Update markers layer size
+        markersLayer.style.width = `${canvas.width}px`;
+        markersLayer.style.height = `${canvas.height}px`;
 
-            // Update preview canvas size
-            const previewCanvas = document.getElementById('previewLayer');
-            if (previewCanvas) {
-                previewCanvas.width = canvas.width;
-                previewCanvas.height = canvas.height;
-            }
+        // Update preview canvas size
+        const previewCanvas = document.getElementById('previewLayer');
+        if (previewCanvas) {
+            previewCanvas.width = canvas.width;
+            previewCanvas.height = canvas.height;
+        }
 
-            // Recalculate scale and position
-            const scale = calculateFitScale(originalWidth, originalHeight);
-            const scaledWidth = originalWidth * scale;
-            const scaledHeight = originalHeight * scale;
-            const x = (canvas.width - scaledWidth) / 2;
-            const y = (canvas.height - scaledHeight) / 2;
-
-            // Redraw image
-            ctx.drawImage(originalImage, x, y, scaledWidth, scaledHeight);
-            originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-            // Restore drawings on top of the image
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = oldWidth;
-            tempCanvas.height = oldHeight;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.putImageData(currentImageData, 0, 0);
-            ctx.drawImage(tempCanvas, 0, 0);
-
-            // Update drawHistory with new state
-            drawHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        // Redraw everything (viewport state unchanged, so no coordinate issues)
+        if (imageState.img) {
+            requestRender();
         }
     });
 
