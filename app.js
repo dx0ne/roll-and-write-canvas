@@ -327,9 +327,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Drawing Functions
     function getMousePos(e) {
         const rect = canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+        const world = canvasToWorld(canvasX, canvasY);
+
         return {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            canvas: { x: canvasX, y: canvasY },
+            world: world,
+            x: world.x,  // Legacy compatibility
+            y: world.y,  // Legacy compatibility
+            isInsideImage: isInsideImage(world.x, world.y)
         };
     }
 
@@ -368,19 +375,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleMouseDown(e) {
         isDrawing = true;
-        const rect = canvas.getBoundingClientRect();
-        startX = e.clientX - rect.left;
-        startY = e.clientY - rect.top;
+        const pos = getMousePos(e);
+        // Store start position in world coordinates
+        startX = pos.x;
+        startY = pos.y;
     }
 
     function handleMouseMove(e) {
+        const pos = getMousePos(e);
+
         if (!isDrawing) {
             // Show eraser preview even when not drawing
-            if (currentTool === 'eraser') {
-                const pos = getMousePos(e);
+            if (currentTool === 'eraser' && pos.isInsideImage) {
+                const canvasPos = worldToCanvas(pos.x, pos.y);
                 previewCtx.clearRect(0, 0, canvas.width, canvas.height);
                 previewCtx.beginPath();
-                previewCtx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
+                previewCtx.arc(canvasPos.x, canvasPos.y, 10 * viewport.scale, 0, Math.PI * 2);
                 previewCtx.strokeStyle = '#000000';
                 previewCtx.setLineDash([2, 2]);
                 previewCtx.stroke();
@@ -388,50 +398,54 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-        
-        const rect = canvas.getBoundingClientRect();
-        const currentX = e.clientX - rect.left;
-        const currentY = e.clientY - rect.top;
 
-        if (currentTool === 'pen') {
-            ctx.lineTo(currentX, currentY);
-            ctx.strokeStyle = currentColor;
-            ctx.lineWidth = 2;
-            ctx.stroke();
+        // Only allow drawing inside image
+        if (!pos.isInsideImage) {
             return;
-        } else if (currentTool === 'eraser') {
-            // Create a temporary canvas for the eraser operation
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
-            const tempCtx = tempCanvas.getContext('2d');
+        }
 
-            // Copy current canvas state
-            tempCtx.putImageData(ctx.getImageData(0, 0, canvas.width, canvas.height), 0, 0);
+        if (currentTool === 'pen' && imageState.offscreenCtx) {
+            // Calculate position relative to image
+            const relX = pos.x - imageState.x;
+            const relY = pos.y - imageState.y;
 
-            // Set up eraser
-            tempCtx.globalCompositeOperation = 'destination-out';
-            tempCtx.beginPath();
-            tempCtx.arc(currentX, currentY, 10, 0, Math.PI * 2);
-            tempCtx.fill();
+            // Draw on offscreen canvas (at original image resolution)
+            const scaleX = imageState.width / imageState.displayWidth;
+            const scaleY = imageState.height / imageState.displayHeight;
+            const offscreenX = relX * scaleX;
+            const offscreenY = relY * scaleY;
 
-            // Draw original image or white background first
-            if (originalImageData) {
-                ctx.putImageData(originalImageData, 0, 0);
-            } else {
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
+            imageState.offscreenCtx.lineTo(offscreenX, offscreenY);
+            imageState.offscreenCtx.strokeStyle = currentColor;
+            imageState.offscreenCtx.lineWidth = 2;
+            imageState.offscreenCtx.stroke();
 
-            // Then draw current state with erased portion
-            ctx.globalCompositeOperation = 'source-atop';
-            ctx.drawImage(tempCanvas, 0, 0);
-            ctx.globalCompositeOperation = 'source-over';
+            requestRender();
+            return;
+        } else if (currentTool === 'eraser' && imageState.offscreenCtx) {
+            // Calculate position relative to image
+            const relX = pos.x - imageState.x;
+            const relY = pos.y - imageState.y;
 
-            // Update eraser preview position
+            // Erase on offscreen canvas (at original image resolution)
+            const scaleX = imageState.width / imageState.displayWidth;
+            const scaleY = imageState.height / imageState.displayHeight;
+            const offscreenX = relX * scaleX;
+            const offscreenY = relY * scaleY;
+
+            imageState.offscreenCtx.globalCompositeOperation = 'destination-out';
+            imageState.offscreenCtx.beginPath();
+            imageState.offscreenCtx.arc(offscreenX, offscreenY, 10, 0, Math.PI * 2);
+            imageState.offscreenCtx.fill();
+            imageState.offscreenCtx.globalCompositeOperation = 'source-over';
+
+            requestRender();
+
+            // Update eraser preview
+            const canvasPos = worldToCanvas(pos.x, pos.y);
             previewCtx.clearRect(0, 0, canvas.width, canvas.height);
             previewCtx.beginPath();
-            previewCtx.arc(currentX, currentY, 10, 0, Math.PI * 2);
+            previewCtx.arc(canvasPos.x, canvasPos.y, 10 * viewport.scale, 0, Math.PI * 2);
             previewCtx.strokeStyle = '#000000';
             previewCtx.setLineDash([2, 2]);
             previewCtx.stroke();
@@ -440,51 +454,71 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Clear previous preview for other tools
         previewCtx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw preview based on selected tool
+
+        // Draw preview based on selected tool (in canvas space)
+        const startCanvas = worldToCanvas(startX, startY);
+        const endCanvas = worldToCanvas(pos.x, pos.y);
+
         previewCtx.strokeStyle = currentColor;
-        previewCtx.lineWidth = 2;
+        previewCtx.lineWidth = 2 * viewport.scale;
         previewCtx.setLineDash([5, 5]); // Make preview dashed
-        
+
         if (currentTool === 'line') {
             previewCtx.beginPath();
-            previewCtx.moveTo(startX, startY);
-            previewCtx.lineTo(currentX, currentY);
+            previewCtx.moveTo(startCanvas.x, startCanvas.y);
+            previewCtx.lineTo(endCanvas.x, endCanvas.y);
             previewCtx.stroke();
         } else if (currentTool === 'rectangle') {
-            const width = currentX - startX;
-            const height = currentY - startY;
-            previewCtx.strokeRect(startX, startY, width, height);
+            const width = endCanvas.x - startCanvas.x;
+            const height = endCanvas.y - startCanvas.y;
+            previewCtx.strokeRect(startCanvas.x, startCanvas.y, width, height);
         }
     }
 
     function handleMouseUp(e) {
         if (!isDrawing) return;
-        
-        const rect = canvas.getBoundingClientRect();
-        const endX = e.clientX - rect.left;
-        const endY = e.clientY - rect.top;
+
+        const pos = getMousePos(e);
 
         // Clear preview
         previewCtx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw final shape on main canvas
-        ctx.strokeStyle = currentColor;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([]); // Remove dash pattern for final shape
-        
-        if (currentTool === 'line') {
-            ctx.beginPath();
-            ctx.moveTo(startX, startY);
-            ctx.lineTo(endX, endY);
-            ctx.stroke();
-        } else if (currentTool === 'rectangle') {
-            const width = endX - startX;
-            const height = endY - startY;
-            ctx.fillStyle = currentColor;
-            ctx.fillRect(startX, startY, width, height);
+
+        // Only draw if inside image
+        if (pos.isInsideImage && imageState.offscreenCtx) {
+            // Calculate positions relative to image (in world space)
+            const startRelX = startX - imageState.x;
+            const startRelY = startY - imageState.y;
+            const endRelX = pos.x - imageState.x;
+            const endRelY = pos.y - imageState.y;
+
+            // Convert to offscreen canvas coordinates (original image resolution)
+            const scaleX = imageState.width / imageState.displayWidth;
+            const scaleY = imageState.height / imageState.displayHeight;
+            const offscreenStartX = startRelX * scaleX;
+            const offscreenStartY = startRelY * scaleY;
+            const offscreenEndX = endRelX * scaleX;
+            const offscreenEndY = endRelY * scaleY;
+
+            // Draw final shape on offscreen canvas
+            imageState.offscreenCtx.strokeStyle = currentColor;
+            imageState.offscreenCtx.lineWidth = 2;
+            imageState.offscreenCtx.setLineDash([]);
+
+            if (currentTool === 'line') {
+                imageState.offscreenCtx.beginPath();
+                imageState.offscreenCtx.moveTo(offscreenStartX, offscreenStartY);
+                imageState.offscreenCtx.lineTo(offscreenEndX, offscreenEndY);
+                imageState.offscreenCtx.stroke();
+            } else if (currentTool === 'rectangle') {
+                const width = offscreenEndX - offscreenStartX;
+                const height = offscreenEndY - offscreenStartY;
+                imageState.offscreenCtx.fillStyle = currentColor;
+                imageState.offscreenCtx.fillRect(offscreenStartX, offscreenStartY, width, height);
+            }
+
+            requestRender();
         }
-        
+
         isDrawing = false;
         saveToHistory();
     }
@@ -502,6 +536,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modify drawing logic
     canvas.addEventListener('mousedown', (e) => {
         const pos = getMousePos(e);
+
+        // Skip if panning
+        if (e.button === 1 || (e.button === 0 && spacebarPressed)) {
+            return;
+        }
+
         if (e.ctrlKey) {
             if(e.shiftKey) {
                 createCounter(pos.x, pos.y);
@@ -514,36 +554,47 @@ document.addEventListener('DOMContentLoaded', () => {
             createCounter(pos.x, pos.y);
             return;
         }
+
+        // Only allow drawing inside image
+        if (!pos.isInsideImage) {
+            return;
+        }
+
         handleMouseDown(e);
 
-        if (currentTool === 'pen') {
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-            ctx.strokeStyle = currentColor;
-            ctx.lineWidth = 2;
-        } else if (currentTool === 'eraser') {
-            // Initial eraser action
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = canvas.width;
-            tempCanvas.height = canvas.height;
-            const tempCtx = tempCanvas.getContext('2d');
+        if (currentTool === 'pen' && imageState.offscreenCtx) {
+            // Calculate position relative to image
+            const relX = pos.x - imageState.x;
+            const relY = pos.y - imageState.y;
 
-            tempCtx.putImageData(ctx.getImageData(0, 0, canvas.width, canvas.height), 0, 0);
-            tempCtx.globalCompositeOperation = 'destination-out';
-            tempCtx.beginPath();
-            tempCtx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
-            tempCtx.fill();
+            // Draw on offscreen canvas (at original image resolution)
+            const scaleX = imageState.width / imageState.displayWidth;
+            const scaleY = imageState.height / imageState.displayHeight;
+            const offscreenX = relX * scaleX;
+            const offscreenY = relY * scaleY;
 
-            // Draw original image or white background first
-            if (originalImageData) {
-                ctx.putImageData(originalImageData, 0, 0);
-            } else {
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
-            ctx.globalCompositeOperation = 'source-atop';
-            ctx.drawImage(tempCanvas, 0, 0);
-            ctx.globalCompositeOperation = 'source-over';
+            imageState.offscreenCtx.beginPath();
+            imageState.offscreenCtx.moveTo(offscreenX, offscreenY);
+            imageState.offscreenCtx.strokeStyle = currentColor;
+            imageState.offscreenCtx.lineWidth = 2;
+        } else if (currentTool === 'eraser' && imageState.offscreenCtx) {
+            // Calculate position relative to image
+            const relX = pos.x - imageState.x;
+            const relY = pos.y - imageState.y;
+
+            // Erase on offscreen canvas (at original image resolution)
+            const scaleX = imageState.width / imageState.displayWidth;
+            const scaleY = imageState.height / imageState.displayHeight;
+            const offscreenX = relX * scaleX;
+            const offscreenY = relY * scaleY;
+
+            imageState.offscreenCtx.globalCompositeOperation = 'destination-out';
+            imageState.offscreenCtx.beginPath();
+            imageState.offscreenCtx.arc(offscreenX, offscreenY, 10, 0, Math.PI * 2);
+            imageState.offscreenCtx.fill();
+            imageState.offscreenCtx.globalCompositeOperation = 'source-over';
+
+            requestRender();
         }
     });
 
