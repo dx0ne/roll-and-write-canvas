@@ -281,6 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.ctrlKey && !ctrlPressed) {
             ctrlPressed = true;
             updateCursor();
+            updateMarkerCursors();
         }
     });
 
@@ -294,8 +295,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!e.ctrlKey && ctrlPressed) {
             ctrlPressed = false;
             updateCursor();
+            updateMarkerCursors();
         }
     });
+
+    function updateMarkerCursors() {
+        // Update cursor for all markers/counters when Ctrl state changes
+        markersData.forEach(markerData => {
+            const element = document.getElementById(markerData.id);
+            if (element && element.matches(':hover')) {
+                if (ctrlPressed) {
+                    element.style.cursor = 'not-allowed';
+                } else {
+                    element.style.cursor = 'move';
+                }
+            }
+        });
+    }
 
     function updateCursor() {
         if (viewport.isDragging) {
@@ -950,7 +966,7 @@ document.addEventListener('DOMContentLoaded', () => {
         marker.id = markerId;
         marker.className = type === 'die' ? 'die rolled' : 'marker';
         marker.style.position = 'absolute';
-        marker.style.cursor = 'move';
+        // Cursor is managed by updateCursor() based on Ctrl state
         marker.style.pointerEvents = 'auto';
         marker.style.userSelect = 'none';
 
@@ -1008,12 +1024,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         marker.addEventListener('mousedown', handleMarkerMouseDown);
         marker.addEventListener('contextmenu', (e) => e.preventDefault());
-        marker.addEventListener('mouseenter', () => {
+        marker.addEventListener('mouseenter', (e) => {
             hoveringMarker = true;
-            updateCursor();
+            if (ctrlPressed) {
+                marker.style.cursor = 'not-allowed';
+            } else if (e.shiftKey) {
+                marker.style.cursor = 'nwse-resize';
+            } else {
+                marker.style.cursor = 'move';
+            }
         });
         marker.addEventListener('mouseleave', () => {
             hoveringMarker = false;
+            marker.style.cursor = '';
             updateCursor();
         });
         markersLayer.appendChild(marker);
@@ -1866,13 +1889,19 @@ document.addEventListener('DOMContentLoaded', () => {
             markerOffsetY = world.y - counterData.worldY;
         });
 
-        counter.addEventListener('mouseenter', () => {
+        counter.addEventListener('mouseenter', (e) => {
             hoveringMarker = true;
-            updateCursor();
+            if (ctrlPressed) {
+                counter.style.cursor = 'not-allowed';
+            } else if (e.shiftKey) {
+                counter.style.cursor = 'nwse-resize';
+            } else {
+                counter.style.cursor = 'move';
+            }
         });
         counter.addEventListener('mouseleave', () => {
             hoveringMarker = false;
-            updateCursor();
+            counter.style.cursor = '';
         });
 
         markersLayer.appendChild(counter);
