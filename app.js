@@ -557,11 +557,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     dropdownContainer.classList.toggle('show');
                 };
 
-                document.addEventListener('click', (e) => {
+                // Add click handler only once when creating the dropdown
+                const closeDropdown = (e) => {
                     if (!dropdownContainer.contains(e.target) && !customDiceBtn.contains(e.target)) {
                         dropdownContainer.classList.remove('show');
                     }
-                });
+                };
+                document.addEventListener('click', closeDropdown);
             }
         }
 
@@ -630,11 +632,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 historyDropdown.classList.toggle('show');
             };
 
-            document.addEventListener('click', (e) => {
+            // Add click handler only once when creating the dropdown
+            const closeHistoryDropdown = (e) => {
                 if (!historyDropdown.contains(e.target) && !historyBtn.contains(e.target)) {
                     historyDropdown.classList.remove('show');
                 }
-            });
+            };
+            document.addEventListener('click', closeHistoryDropdown);
         }
 
         // Clear existing history
