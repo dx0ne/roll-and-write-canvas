@@ -271,6 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Pan functionality (middle mouse button or space + left mouse)
     let spacebarPressed = false;
     let ctrlPressed = false;
+    let hoveringMarker = false;
 
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space' && !e.repeat) {
@@ -301,8 +302,8 @@ document.addEventListener('DOMContentLoaded', () => {
             canvas.style.cursor = 'grabbing';
         } else if (spacebarPressed) {
             canvas.style.cursor = 'grab';
-        } else if (ctrlPressed) {
-            canvas.style.cursor = 'not-allowed';  // Delete cursor
+        } else if (ctrlPressed && hoveringMarker) {
+            canvas.style.cursor = 'not-allowed';  // Delete cursor - only over markers
         } else {
             canvas.style.cursor = 'default';
         }
@@ -1007,6 +1008,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         marker.addEventListener('mousedown', handleMarkerMouseDown);
         marker.addEventListener('contextmenu', (e) => e.preventDefault());
+        marker.addEventListener('mouseenter', () => {
+            hoveringMarker = true;
+            updateCursor();
+        });
+        marker.addEventListener('mouseleave', () => {
+            hoveringMarker = false;
+            updateCursor();
+        });
         markersLayer.appendChild(marker);
 
         // Initial position update
@@ -1855,6 +1864,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const world = canvasToWorld(canvasX, canvasY);
             markerOffsetX = world.x - counterData.worldX;
             markerOffsetY = world.y - counterData.worldY;
+        });
+
+        counter.addEventListener('mouseenter', () => {
+            hoveringMarker = true;
+            updateCursor();
+        });
+        counter.addEventListener('mouseleave', () => {
+            hoveringMarker = false;
+            updateCursor();
         });
 
         markersLayer.appendChild(counter);
