@@ -619,11 +619,13 @@ document.addEventListener('DOMContentLoaded', () => {
             historyBtn.innerHTML = '<i class="fas fa-history"></i>';
             historyBtn.title = 'Roll History';
 
-            // Add button to input group
-            const inputGroup = document.querySelector('.dice-input-group');
-            if (inputGroup) {
-                inputGroup.appendChild(historyBtn);
-                inputGroup.appendChild(historyDropdown);
+            // Add button next to roll button
+            const diceRoller = document.querySelector('.dice-roller');
+            const rollButton = document.getElementById('rollButton');
+            if (diceRoller && rollButton) {
+                // Insert history button right after roll button
+                rollButton.insertAdjacentElement('afterend', historyBtn);
+                diceRoller.appendChild(historyDropdown);
             }
 
             // Set up click handlers
