@@ -30,6 +30,19 @@ const imageState = {
     offscreenCtx: null         // Context for offscreen canvas
 };
 
+// Resize handle state
+const resizeState = {
+    isResizing: false,
+    activeHandle: null,  // 'nw', 'ne', 'sw', 'se', 'n', 's', 'e', 'w'
+    startX: 0,
+    startY: 0,
+    startImageX: 0,
+    startImageY: 0,
+    startDisplayWidth: 0,
+    startDisplayHeight: 0,
+    handleSize: 8  // Size of resize handles in pixels
+};
+
 // Create GraphemeSplitter instance at the top level
 const gs = new GraphemeSplitter();
 
@@ -112,7 +125,56 @@ document.addEventListener('DOMContentLoaded', () => {
         // Restore context state
         ctx.restore();
 
+        // Draw resize handles (in canvas space, not transformed)
+        drawResizeHandles();
+
         // Note: Marker positions will be updated in Phase 5
+    }
+
+    function drawResizeHandles() {
+        if (!imageState.img) return;
+
+        // Get image corners in canvas space
+        const topLeft = worldToCanvas(imageState.x, imageState.y);
+        const topRight = worldToCanvas(imageState.x + imageState.displayWidth, imageState.y);
+        const bottomLeft = worldToCanvas(imageState.x, imageState.y + imageState.displayHeight);
+        const bottomRight = worldToCanvas(imageState.x + imageState.displayWidth, imageState.y + imageState.displayHeight);
+
+        // Get edge midpoints in canvas space
+        const topMid = worldToCanvas(imageState.x + imageState.displayWidth / 2, imageState.y);
+        const bottomMid = worldToCanvas(imageState.x + imageState.displayWidth / 2, imageState.y + imageState.displayHeight);
+        const leftMid = worldToCanvas(imageState.x, imageState.y + imageState.displayHeight / 2);
+        const rightMid = worldToCanvas(imageState.x + imageState.displayWidth, imageState.y + imageState.displayHeight / 2);
+
+        const handles = [
+            { pos: topLeft, cursor: 'nwse-resize' },
+            { pos: topRight, cursor: 'nesw-resize' },
+            { pos: bottomLeft, cursor: 'nesw-resize' },
+            { pos: bottomRight, cursor: 'nwse-resize' },
+            { pos: topMid, cursor: 'ns-resize' },
+            { pos: bottomMid, cursor: 'ns-resize' },
+            { pos: leftMid, cursor: 'ew-resize' },
+            { pos: rightMid, cursor: 'ew-resize' }
+        ];
+
+        ctx.fillStyle = '#4A90E2';
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+
+        handles.forEach(handle => {
+            ctx.fillRect(
+                handle.pos.x - resizeState.handleSize / 2,
+                handle.pos.y - resizeState.handleSize / 2,
+                resizeState.handleSize,
+                resizeState.handleSize
+            );
+            ctx.strokeRect(
+                handle.pos.x - resizeState.handleSize / 2,
+                handle.pos.y - resizeState.handleSize / 2,
+                resizeState.handleSize,
+                resizeState.handleSize
+            );
+        });
     }
 
     function requestRender() {
@@ -123,6 +185,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderRequested = false;
             });
         }
+    }
+
+    function getResizeHandle(canvasX, canvasY) {
+        if (!imageState.img) return null;
+
+        // Get image corners in canvas space
+        const topLeft = worldToCanvas(imageState.x, imageState.y);
+        const topRight = worldToCanvas(imageState.x + imageState.displayWidth, imageState.y);
+        const bottomLeft = worldToCanvas(imageState.x, imageState.y + imageState.displayHeight);
+        const bottomRight = worldToCanvas(imageState.x + imageState.displayWidth, imageState.y + imageState.displayHeight);
+
+        // Get edge midpoints in canvas space
+        const topMid = worldToCanvas(imageState.x + imageState.displayWidth / 2, imageState.y);
+        const bottomMid = worldToCanvas(imageState.x + imageState.displayWidth / 2, imageState.y + imageState.displayHeight);
+        const leftMid = worldToCanvas(imageState.x, imageState.y + imageState.displayHeight / 2);
+        const rightMid = worldToCanvas(imageState.x + imageState.displayWidth, imageState.y + imageState.displayHeight / 2);
+
+        const hitDistance = resizeState.handleSize + 5; // Add some tolerance
+
+        const handles = [
+            { name: 'nw', pos: topLeft },
+            { name: 'ne', pos: topRight },
+            { name: 'sw', pos: bottomLeft },
+            { name: 'se', pos: bottomRight },
+            { name: 'n', pos: topMid },
+            { name: 's', pos: bottomMid },
+            { name: 'w', pos: leftMid },
+            { name: 'e', pos: rightMid }
+        ];
+
+        for (const handle of handles) {
+            const dx = canvasX - handle.pos.x;
+            const dy = canvasY - handle.pos.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < hitDistance) {
+                return handle.name;
+            }
+        }
+
+        return null;
     }
 
     // Pan functionality (middle mouse button or space + left mouse)
@@ -145,6 +247,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        // Check for resize handle first
+        const handle = getResizeHandle(canvasX, canvasY);
+        if (handle && e.button === 0) {
+            e.preventDefault();
+            resizeState.isResizing = true;
+            resizeState.activeHandle = handle;
+            resizeState.startX = canvasX;
+            resizeState.startY = canvasY;
+            resizeState.startImageX = imageState.x;
+            resizeState.startImageY = imageState.y;
+            resizeState.startDisplayWidth = imageState.displayWidth;
+            resizeState.startDisplayHeight = imageState.displayHeight;
+            return;
+        }
+
         // Pan with middle mouse or space + left mouse
         if (e.button === 1 || (e.button === 0 && spacebarPressed)) {
             e.preventDefault();
@@ -156,15 +277,126 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('mousemove', (e) => {
-        if (viewport.isDragging) {
+        if (resizeState.isResizing) {
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = e.clientX - rect.left;
+            const canvasY = e.clientY - rect.top;
+
+            // Calculate delta in canvas space
+            const deltaX = canvasX - resizeState.startX;
+            const deltaY = canvasY - resizeState.startY;
+
+            // Convert delta to world space
+            const worldDeltaX = deltaX / viewport.scale;
+            const worldDeltaY = deltaY / viewport.scale;
+
+            // Apply resize based on active handle
+            const handle = resizeState.activeHandle;
+            const aspectRatio = resizeState.startDisplayWidth / resizeState.startDisplayHeight;
+            const shiftKey = e.shiftKey;
+
+            if (handle === 'se') {
+                // Southeast corner - resize from top-left
+                if (shiftKey) {
+                    // Free resize
+                    imageState.displayWidth = Math.max(50, resizeState.startDisplayWidth + worldDeltaX);
+                    imageState.displayHeight = Math.max(50, resizeState.startDisplayHeight + worldDeltaY);
+                } else {
+                    // Proportional resize
+                    const newWidth = Math.max(50, resizeState.startDisplayWidth + worldDeltaX);
+                    imageState.displayWidth = newWidth;
+                    imageState.displayHeight = newWidth / aspectRatio;
+                }
+            } else if (handle === 'sw') {
+                // Southwest corner
+                if (shiftKey) {
+                    imageState.displayWidth = Math.max(50, resizeState.startDisplayWidth - worldDeltaX);
+                    imageState.displayHeight = Math.max(50, resizeState.startDisplayHeight + worldDeltaY);
+                    imageState.x = resizeState.startImageX + (resizeState.startDisplayWidth - imageState.displayWidth);
+                } else {
+                    const newWidth = Math.max(50, resizeState.startDisplayWidth - worldDeltaX);
+                    imageState.displayWidth = newWidth;
+                    imageState.displayHeight = newWidth / aspectRatio;
+                    imageState.x = resizeState.startImageX + (resizeState.startDisplayWidth - imageState.displayWidth);
+                }
+            } else if (handle === 'ne') {
+                // Northeast corner
+                if (shiftKey) {
+                    imageState.displayWidth = Math.max(50, resizeState.startDisplayWidth + worldDeltaX);
+                    imageState.displayHeight = Math.max(50, resizeState.startDisplayHeight - worldDeltaY);
+                    imageState.y = resizeState.startImageY + (resizeState.startDisplayHeight - imageState.displayHeight);
+                } else {
+                    const newWidth = Math.max(50, resizeState.startDisplayWidth + worldDeltaX);
+                    imageState.displayWidth = newWidth;
+                    imageState.displayHeight = newWidth / aspectRatio;
+                    imageState.y = resizeState.startImageY + (resizeState.startDisplayHeight - imageState.displayHeight);
+                }
+            } else if (handle === 'nw') {
+                // Northwest corner
+                if (shiftKey) {
+                    imageState.displayWidth = Math.max(50, resizeState.startDisplayWidth - worldDeltaX);
+                    imageState.displayHeight = Math.max(50, resizeState.startDisplayHeight - worldDeltaY);
+                    imageState.x = resizeState.startImageX + (resizeState.startDisplayWidth - imageState.displayWidth);
+                    imageState.y = resizeState.startImageY + (resizeState.startDisplayHeight - imageState.displayHeight);
+                } else {
+                    const newWidth = Math.max(50, resizeState.startDisplayWidth - worldDeltaX);
+                    imageState.displayWidth = newWidth;
+                    imageState.displayHeight = newWidth / aspectRatio;
+                    imageState.x = resizeState.startImageX + (resizeState.startDisplayWidth - imageState.displayWidth);
+                    imageState.y = resizeState.startImageY + (resizeState.startDisplayHeight - imageState.displayHeight);
+                }
+            } else if (handle === 'e') {
+                // East edge
+                imageState.displayWidth = Math.max(50, resizeState.startDisplayWidth + worldDeltaX);
+            } else if (handle === 'w') {
+                // West edge
+                imageState.displayWidth = Math.max(50, resizeState.startDisplayWidth - worldDeltaX);
+                imageState.x = resizeState.startImageX + (resizeState.startDisplayWidth - imageState.displayWidth);
+            } else if (handle === 's') {
+                // South edge
+                imageState.displayHeight = Math.max(50, resizeState.startDisplayHeight + worldDeltaY);
+            } else if (handle === 'n') {
+                // North edge
+                imageState.displayHeight = Math.max(50, resizeState.startDisplayHeight - worldDeltaY);
+                imageState.y = resizeState.startImageY + (resizeState.startDisplayHeight - imageState.displayHeight);
+            }
+
+            requestRender();
+        } else if (viewport.isDragging) {
             viewport.x = e.clientX - viewport.dragStartX;
             viewport.y = e.clientY - viewport.dragStartY;
             requestRender();
+        } else {
+            // Update cursor based on hover over resize handles
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = e.clientX - rect.left;
+            const canvasY = e.clientY - rect.top;
+            const handle = getResizeHandle(canvasX, canvasY);
+
+            if (handle) {
+                const cursors = {
+                    'nw': 'nwse-resize',
+                    'ne': 'nesw-resize',
+                    'sw': 'nesw-resize',
+                    'se': 'nwse-resize',
+                    'n': 'ns-resize',
+                    's': 'ns-resize',
+                    'e': 'ew-resize',
+                    'w': 'ew-resize'
+                };
+                canvas.style.cursor = cursors[handle];
+            } else if (!spacebarPressed) {
+                canvas.style.cursor = 'default';
+            }
         }
     });
 
     document.addEventListener('mouseup', (e) => {
-        if (viewport.isDragging && (e.button === 1 || e.button === 0)) {
+        if (resizeState.isResizing && e.button === 0) {
+            resizeState.isResizing = false;
+            resizeState.activeHandle = null;
+            canvas.style.cursor = 'default';
+        } else if (viewport.isDragging && (e.button === 1 || e.button === 0)) {
             viewport.isDragging = false;
             canvas.style.cursor = spacebarPressed ? 'grab' : 'default';
         }
