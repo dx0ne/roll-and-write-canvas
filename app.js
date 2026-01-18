@@ -1,6 +1,6 @@
 let canvas, ctx, previewCtx;
 let currentColor = '#000000';
-let currentTool = 'pen';
+let currentTool = 'select';  // Default to select tool instead of pen
 let originalImageData = null;  // Deprecated - will be replaced by imageState
 let originalImage = null;  // Deprecated - will be replaced by imageState
 let rollHistory = [];
@@ -40,7 +40,8 @@ const resizeState = {
     startImageY: 0,
     startDisplayWidth: 0,
     startDisplayHeight: 0,
-    handleSize: 8  // Size of resize handles in pixels
+    handleSize: 8,  // Size of resize handles in pixels
+    showHandles: false  // Only show handles when hovering over image
 };
 
 // Create GraphemeSplitter instance at the top level
@@ -132,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawResizeHandles() {
-        if (!imageState.img) return;
+        if (!imageState.img || !resizeState.showHandles) return;
 
         // Get image corners in canvas space
         const topLeft = worldToCanvas(imageState.x, imageState.y);
@@ -185,6 +186,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderRequested = false;
             });
         }
+    }
+
+    function isMouseOverImage(canvasX, canvasY) {
+        if (!imageState.img) return false;
+        const world = canvasToWorld(canvasX, canvasY);
+        return isInsideImage(world.x, world.y);
     }
 
     function getResizeHandle(canvasX, canvasY) {
@@ -367,11 +374,20 @@ document.addEventListener('DOMContentLoaded', () => {
             viewport.y = e.clientY - viewport.dragStartY;
             requestRender();
         } else {
-            // Update cursor based on hover over resize handles
+            // Update cursor and handle visibility based on hover
             const rect = canvas.getBoundingClientRect();
             const canvasX = e.clientX - rect.left;
             const canvasY = e.clientY - rect.top;
+
+            // Show resize handles only when hovering over image or handles
+            const overImage = isMouseOverImage(canvasX, canvasY);
             const handle = getResizeHandle(canvasX, canvasY);
+            const shouldShowHandles = overImage || handle !== null;
+
+            if (resizeState.showHandles !== shouldShowHandles) {
+                resizeState.showHandles = shouldShowHandles;
+                requestRender();
+            }
 
             if (handle) {
                 const cursors = {
@@ -784,6 +800,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (currentTool === 'counter') {
             createCounter(pos.x, pos.y);
+            return;
+        }
+
+        // Don't draw with select tool
+        if (currentTool === 'select') {
             return;
         }
 
