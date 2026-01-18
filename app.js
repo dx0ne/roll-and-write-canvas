@@ -320,6 +320,8 @@ document.addEventListener('DOMContentLoaded', () => {
             canvas.style.cursor = 'grab';
         } else if (ctrlPressed && hoveringMarker) {
             canvas.style.cursor = 'not-allowed';  // Delete cursor - only over markers
+        } else if (ctrlPressed) {
+            canvas.style.cursor = 'copy';  // Add marker cursor when Ctrl is held
         } else {
             canvas.style.cursor = 'default';
         }
