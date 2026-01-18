@@ -270,11 +270,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Pan functionality (middle mouse button or space + left mouse)
     let spacebarPressed = false;
+    let ctrlPressed = false;
 
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space' && !e.repeat) {
             spacebarPressed = true;
             canvas.style.cursor = 'grab';
+        }
+        if (e.ctrlKey && !ctrlPressed) {
+            ctrlPressed = true;
+            updateCursor();
         }
     });
 
@@ -282,10 +287,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.code === 'Space') {
             spacebarPressed = false;
             if (!viewport.isDragging) {
-                canvas.style.cursor = 'default';
+                updateCursor();
             }
         }
+        if (!e.ctrlKey && ctrlPressed) {
+            ctrlPressed = false;
+            updateCursor();
+        }
     });
+
+    function updateCursor() {
+        if (viewport.isDragging) {
+            canvas.style.cursor = 'grabbing';
+        } else if (spacebarPressed) {
+            canvas.style.cursor = 'grab';
+        } else if (ctrlPressed) {
+            canvas.style.cursor = 'not-allowed';  // Delete cursor
+        } else {
+            canvas.style.cursor = 'default';
+        }
+    }
 
     canvas.addEventListener('mousedown', (e) => {
         const rect = canvas.getBoundingClientRect();
@@ -435,8 +456,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     'w': 'ew-resize'
                 };
                 canvas.style.cursor = cursors[handle];
-            } else if (!spacebarPressed) {
-                canvas.style.cursor = 'default';
+            } else {
+                updateCursor();
             }
         }
     });
